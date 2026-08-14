@@ -2,6 +2,9 @@ import React from 'react';
 import { View, StyleSheet, Image } from 'react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/Text';
+import { router } from 'expo-router';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 
 export default function Index() {
   return (
@@ -13,9 +16,12 @@ export default function Index() {
       />
       <Text style={styles.title}>TimeMap</Text>
       <Text style={styles.subtitle}>NSUK TimeMap</Text>
-      <Text style={styles.description}>
-        Welcome to TimeMap. The app is set up in dark mode with custom typography.
-      </Text>
+      <Card>
+        <Text style={styles.description}>
+          Welcome to TimeMap. Access your lecture/exam/event timetable, manage discrepancies.
+        </Text></Card>
+
+      <Button variant='primary' onPress={() => { router.replace('/(auth)/login') }} style={{ marginTop: 20 }}>Login</Button>
     </View>
   );
 }

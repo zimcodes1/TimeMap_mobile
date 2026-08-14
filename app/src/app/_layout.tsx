@@ -4,7 +4,9 @@ import { ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import Toast from 'react-native-toast-message';
 import { AppDarkTheme, setAppDefaultFont, colors } from '@/theme';
+import { toastConfig } from '@/components/ui/ToastConfig';
 
 // Keep the splash screen visible while loading resources
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -40,6 +42,7 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.background },
         }}
       />
+      <Toast config={toastConfig} />
     </ThemeProvider>
   );
 }
