@@ -1,32 +1,42 @@
 import React from 'react';
 import { View, StyleSheet, Image } from 'react-native';
 import { colors } from '@/theme/colors';
-import { Text } from '@/components/ui/Text';
+import { Text } from '../ui/Text';
 
-export default function Index() {
+interface SplashScreenViewProps {
+  appName?: string;
+  subtitle?: string;
+}
+
+export const SplashScreenView: React.FC<SplashScreenViewProps> = ({
+  appName = 'TimeMap',
+  subtitle = 'NSUK TimeMap',
+}) => {
   return (
     <View style={styles.container}>
-      <Image
-        source={require('../../assets/images/logo.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-      <Text style={styles.title}>TimeMap</Text>
-      <Text style={styles.subtitle}>NSUK TimeMap</Text>
-      <Text style={styles.description}>
-        Welcome to TimeMap. The app is set up in dark mode with custom typography.
-      </Text>
+      <View style={styles.content}>
+        <Image
+          source={require('../../../assets/images/logo-transparent.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>{appName}</Text>
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      </View>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
   },
   logo: {
     width: 100,
@@ -38,7 +48,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textMain,
     letterSpacing: 0.5,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
@@ -46,13 +56,5 @@ const styles = StyleSheet.create({
     color: colors.primary,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 16,
-  },
-  description: {
-    fontSize: 14,
-    color: colors.textMuted,
-    textAlign: 'center',
-    maxWidth: 280,
-    lineHeight: 20,
   },
 });
