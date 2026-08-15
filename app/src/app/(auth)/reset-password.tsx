@@ -27,10 +27,10 @@ export default function ResetPasswordRoute() {
       Toast.show({
         type: 'success',
         text1: 'Password Reset Successful',
-        text2: 'Your password has been updated. Please sign in.',
+        text2: 'Welcome to TimeMap!',
       });
 
-      router.replace('/(auth)/login');
+      router.replace('/(tabs)' as any);
     } catch (error: any) {
       const errorMsg =
         error?.message || 'Failed to reset password. Please try again.';

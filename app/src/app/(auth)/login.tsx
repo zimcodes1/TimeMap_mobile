@@ -28,11 +28,11 @@ export default function LoginRoute() {
       Toast.show({
         type: 'success',
         text1: 'Login Successful',
-        text2: 'Welcome back to TimeMap!',
+        text2: 'Please update your password to continue.',
       });
 
-      // Navigate to main app index or dashboard
-      router.replace('/');
+      // Navigate to password reset
+      router.replace('/(auth)/reset-password' as any);
     } catch (error: any) {
       const errorMsg =
         error?.message || 'Invalid credentials. Please check your Staff ID and password.';
