@@ -1,0 +1,39 @@
+name: Expo EAS Build
+
+on:
+  push:
+    branches:
+      - main # Change to your default branch name
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    # ADD THIS LINE: Tells GitHub to run all steps inside the "app" folder
+    defaults:
+      run:
+        working-directory: ./app
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json # Points to the lock file in app directory
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build APK (Preview)
+        run: eas build --platform android --profile preview --non-interactive
+
