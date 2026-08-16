@@ -1,15 +1,16 @@
 name: Expo EAS Build
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - main # Change to your default branch name
+      - master
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
-    # ADD THIS LINE: Tells GitHub to run all steps inside the "app" folder
     defaults:
       run:
         working-directory: ./app
@@ -21,9 +22,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: 'npm'
-          cache-dependency-path: app/package-lock.json # Points to the lock file in app directory
+          node-version: 20
+          cache: 'yarn' # Changed to cache Yarn dependencies
+          cache-dependency-path: app/yarn.lock # Points to your Yarn lockfile
 
       - name: Setup EAS CLI
         uses: expo/expo-github-action@v8
@@ -32,8 +33,7 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        run: npm install
+        run: yarn install --frozen-lockfile # Ensures deterministic installs for testing
 
       - name: Build APK (Preview)
         run: eas build --platform android --profile preview --non-interactive
-
