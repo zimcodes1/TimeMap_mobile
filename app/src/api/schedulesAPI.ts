@@ -74,7 +74,9 @@ export const schedulesAPI = {
     } catch (error) {
       console.warn('[schedulesAPI] API call failed, using mock data fallback:', error);
       let result = [...MOCK_SESSIONS];
-      if (params.date) {
+      if (params.startDate) {
+        result = result.filter((s) => s.date >= params.startDate!);
+      } else if (params.date) {
         result = result.filter((s) => s.date === params.date);
       }
       if (params.status && params.status !== 'scheduled') {

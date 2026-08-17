@@ -17,6 +17,7 @@ import { Session, SessionStatus } from '@/types';
 import { MOCK_SESSIONS, MOCK_PROFILE } from '@/constants/mockData';
 import { useAuth } from '@/context/AuthContext';
 import { useTodaySessions } from '@/hooks/useSchedules';
+import { router } from 'expo-router';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,7 @@ export interface TodayScreenProps {
 export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession }) => {
   const { user } = useAuth();
   const profile = user ?? MOCK_PROFILE;
+  const canViewPast = Boolean(profile.isClassRep || profile.role === 'lecturer');
 
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [statusFilter, setStatusFilter] = useState<SessionStatus | 'all'>('all');
@@ -62,12 +64,17 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
     isError,
     isOffline,
     refetch,
-  } = useTodaySessions(selectedDate, statusFilter);
+  } = useTodaySessions(selectedDate, statusFilter, { canViewPast });
 
   const activeDates = useMemo(() => {
-    const dates = [...new Set([...allSessions, ...MOCK_SESSIONS].map((s) => s.date))];
+    const sourceSessions = allSessions.length > 0 ? allSessions : (isOffline ? MOCK_SESSIONS : []);
+    let dates = [...new Set(sourceSessions.map((s) => s.date))];
+    if (!canViewPast) {
+      const today = todayStr();
+      dates = dates.filter((d) => d >= today);
+    }
     return dates;
-  }, [allSessions]);
+  }, [allSessions, isOffline, canViewPast]);
 
   const handleMorePress = (session: Session) => {
     setSelectedSession(session);
@@ -96,7 +103,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
                 <Text style={styles.offlinePillText}>Offline</Text>
               </View>
             ) : null}
-            <Pressable style={styles.filterBtn} onPress={() => {}}>
+            <Pressable style={styles.filterBtn} onPress={() => { router.replace('/(tabs)/profile'); }}>
               <SlidersHorizontal size={20} color={colors.textMuted} />
             </Pressable>
           </View>
@@ -108,6 +115,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
             selectedDate={selectedDate}
             onDateSelect={setSelectedDate}
             activeDates={activeDates}
+            allowPast={canViewPast}
           />
         </View>
 
@@ -126,7 +134,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
             onRefresh={refetch}
             onSessionPress={(s) => onNavigateToSession(s.id)}
             onSessionMorePress={handleMorePress}
-            emptyMessage={`No ${statusFilter === 'all' ? '' : statusFilter + ' '}sessions for this day.`}
+            emptyMessage={`No ${statusFilter === 'all' ? '' : statusFilter + ' '}sessions scheduled from this date forward.`}
           />
         </View>
       </View>

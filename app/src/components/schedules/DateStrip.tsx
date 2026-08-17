@@ -11,9 +11,10 @@ const MONTH_LABELS = [
   'Jul','Aug','Sep','Oct','Nov','Dec',
 ];
 
-function buildDays(centreDate: Date, range = 14): Date[] {
+function buildDays(centreDate: Date, range = 14, allowPast = true): Date[] {
   const days: Date[] = [];
-  for (let i = -3; i < range - 3; i++) {
+  const startOffset = allowPast ? -3 : 0;
+  for (let i = startOffset; i < range + startOffset; i++) {
     const d = new Date(centreDate);
     d.setDate(centreDate.getDate() + i);
     days.push(d);
@@ -40,6 +41,8 @@ export interface DateStripProps {
   onDateSelect: (date: string) => void;
   /** Show a dot under dates that have sessions */
   activeDates?: string[];
+  /** Allow past dates (true for Class Reps & Lecturers, false for regular students) */
+  allowPast?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -48,18 +51,21 @@ export const DateStrip: React.FC<DateStripProps> = ({
   selectedDate,
   onDateSelect,
   activeDates = [],
+  allowPast = true,
 }) => {
   const today = new Date();
-  const days = buildDays(today);
+  const days = buildDays(today, 14, allowPast);
   const scrollRef = useRef<ScrollView>(null);
   const activeSet = new Set(activeDates);
 
-  // Scroll so today's pill is roughly centred on mount
+  // Scroll so today's pill is visible on mount
   useEffect(() => {
-    setTimeout(() => {
-      scrollRef.current?.scrollTo({ x: 3 * 72, animated: false });
-    }, 80);
-  }, []);
+    if (allowPast) {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ x: 3 * 72, animated: false });
+      }, 80);
+    }
+  }, [allowPast]);
 
   return (
     <View style={styles.wrapper}>

@@ -22,11 +22,14 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ReportCard } from '@/components/cards/ReportCard';
+import { EmptyStateView } from '@/components/common/EmptyStateView';
 import { SubmitReportBottomSheet } from '@/components/bottom-sheets/SubmitReportBottomSheet';
 import { ReportDetailBottomSheet } from '@/components/bottom-sheets/ReportDetailBottomSheet';
 import { LecturerResponseBottomSheet } from '@/components/bottom-sheets/LecturerResponseBottomSheet';
 import { Session, SessionStatus, Report } from '@/types';
 import { MOCK_SESSIONS, MOCK_REPORTS, MOCK_PROFILE } from '@/constants/mockData';
+import { useAuth } from '@/context/AuthContext';
+import { useSessionDetail } from '@/hooks/useSchedules';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -108,11 +111,15 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
   sessionId,
   onBack,
 }) => {
-  const profile = MOCK_PROFILE;
-  const session: Session | undefined = useMemo(
+  const { user } = useAuth();
+  const profile = user ?? MOCK_PROFILE;
+
+  const { session: liveSession, isLoading } = useSessionDetail(sessionId);
+  const fallbackSession = useMemo(
     () => MOCK_SESSIONS.find((s) => s.id === sessionId),
     [sessionId]
   );
+  const session = liveSession ?? fallbackSession;
 
   const relatedReports: Report[] = useMemo(
     () => MOCK_REPORTS.filter((r) => r.session.id === sessionId),
@@ -123,6 +130,19 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
   const [reportDetailVisible, setReportDetailVisible] = useState(false);
   const [lecturerResponseVisible, setLecturerResponseVisible] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+
+  if (isLoading && !session) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <Pressable onPress={onBack} style={styles.backBtn}>
+            <ArrowLeft size={22} color={colors.textMain} />
+          </Pressable>
+          <EmptyStateView variant="loading" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!session) {
     return (
