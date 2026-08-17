@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
   TouchableWithoutFeedback,
+  Easing,
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -29,44 +30,66 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   subtitle,
   children,
 }) => {
+  const [isMounted, setIsMounted] = useState(visible);
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.96)).current;
 
   useEffect(() => {
     if (visible) {
+      setIsMounted(true);
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 250,
+          duration: 280,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.spring(slideAnim, {
           toValue: 0,
-          damping: 25,
-          stiffness: 250,
+          damping: 24,
+          stiffness: 220,
+          mass: 0.8,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          damping: 24,
+          stiffness: 220,
+          mass: 0.8,
           useNativeDriver: true,
         }),
       ]).start();
-    } else {
+    } else if (isMounted) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 200,
+          duration: 220,
+          easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
           toValue: SCREEN_HEIGHT,
-          duration: 200,
+          duration: 220,
+          easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
-      ]).start();
+        Animated.timing(scaleAnim, {
+          toValue: 0.96,
+          duration: 220,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setIsMounted(false);
+      });
     }
   }, [visible]);
 
-  if (!visible) return null;
+  if (!isMounted) return null;
 
   return (
-    <Modal transparent visible={visible} onRequestClose={onClose} animationType="none">
+    <Modal transparent visible={isMounted} onRequestClose={onClose} animationType="none">
       <View style={styles.overlay}>
         <TouchableWithoutFeedback onPress={onClose}>
           <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} />
@@ -75,7 +98,13 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         <Animated.View
           style={[
             styles.sheetContainer,
-            { transform: [{ translateY: slideAnim }] },
+            {
+              opacity: fadeAnim,
+              transform: [
+                { translateY: slideAnim },
+                { scale: scaleAnim },
+              ],
+            },
           ]}
         >
           {/* Drag Handle Indicator */}
