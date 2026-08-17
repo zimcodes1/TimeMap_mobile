@@ -2,15 +2,15 @@ import React, { useEffect } from 'react';
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   ActivityIndicator,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, AlertTriangle } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/ui/Button';
-import { MOCK_NOTIFICATIONS } from '@/constants/mockData';
+import { useNotificationsInbox } from '@/hooks/useNotifications';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -29,7 +29,8 @@ export const NotificationResolverScreen: React.FC<NotificationResolverScreenProp
   onNavigateToSession,
   onNavigateToReport,
 }) => {
-  const notification = MOCK_NOTIFICATIONS.find((n) => n.id === notificationId);
+  const { notifications } = useNotificationsInbox();
+  const notification = notifications.find((n) => n.id === notificationId);
 
   useEffect(() => {
     if (!notification) return;

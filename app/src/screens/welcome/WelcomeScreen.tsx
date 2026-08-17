@@ -6,9 +6,9 @@ import {
   Animated,
   Easing,
   Pressable,
-  SafeAreaView,
   useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowRight, Zap, Calendar, Bell } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';

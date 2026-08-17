@@ -100,3 +100,38 @@ export interface UserProfile {
   requiresPasswordReset: boolean;
   pushEnabled: boolean;
 }
+
+// ─── Analytics Types ──────────────────────────────────────────────────────────
+
+export interface AnalyticsSummary {
+  totalSessions: number;
+  heldCount: number;
+  notHeldCount: number;
+  cancelledCount: number;
+  holdRatePercentage: number;
+}
+
+export interface CourseAnalyticsBreakdown {
+  courseId: string;
+  courseCode: string;
+  courseTitle: string;
+  totalSessions: number;
+  heldCount: number;
+  notHeldCount: number;
+  cancelledCount: number;
+  holdRatePercentage: number;
+}
+
+export interface AnalyticsData {
+  summary: AnalyticsSummary;
+  courseBreakdown: CourseAnalyticsBreakdown[];
+  queryRange?: {
+    startDate?: string;
+    endDate?: string;
+    filteredCourse?: string;
+  };
+  userInfo?: {
+    fullName: string;
+    department?: string;
+  };
+}

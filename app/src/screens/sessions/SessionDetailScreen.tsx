@@ -2,10 +2,10 @@ import React, { useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   MapPin,
@@ -27,9 +27,10 @@ import { SubmitReportBottomSheet } from '@/components/bottom-sheets/SubmitReport
 import { ReportDetailBottomSheet } from '@/components/bottom-sheets/ReportDetailBottomSheet';
 import { LecturerResponseBottomSheet } from '@/components/bottom-sheets/LecturerResponseBottomSheet';
 import { Session, SessionStatus, Report } from '@/types';
-import { MOCK_SESSIONS, MOCK_REPORTS, MOCK_PROFILE } from '@/constants/mockData';
 import { useAuth } from '@/context/AuthContext';
 import { useSessionDetail } from '@/hooks/useSchedules';
+import { useReports, useSubmitReport, useRespondReport } from '@/hooks/useReports';
+import { WifiOff } from 'lucide-react-native';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -112,18 +113,17 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
   onBack,
 }) => {
   const { user } = useAuth();
-  const profile = user ?? MOCK_PROFILE;
+  const isClassRep = Boolean(user?.isClassRep);
+  const isLecturer = user?.role === 'lecturer';
 
-  const { session: liveSession, isLoading } = useSessionDetail(sessionId);
-  const fallbackSession = useMemo(
-    () => MOCK_SESSIONS.find((s) => s.id === sessionId),
-    [sessionId]
-  );
-  const session = liveSession ?? fallbackSession;
+  const { session, isLoading, isError, isOffline } = useSessionDetail(sessionId);
+  const { reports } = useReports();
+  const submitReportMutation = useSubmitReport();
+  const respondReportMutation = useRespondReport();
 
   const relatedReports: Report[] = useMemo(
-    () => MOCK_REPORTS.filter((r) => r.session.id === sessionId),
-    [sessionId]
+    () => reports.filter((r) => r.session.id === sessionId),
+    [reports, sessionId]
   );
 
   const [submitVisible, setSubmitVisible] = useState(false);
@@ -131,7 +131,7 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
   const [lecturerResponseVisible, setLecturerResponseVisible] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
-  if (isLoading && !session) {
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
@@ -144,7 +144,7 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
     );
   }
 
-  if (!session) {
+  if (isError || !session) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
@@ -153,7 +153,7 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
           </Pressable>
           <View style={styles.notFound}>
             <AlertCircle size={40} color={colors.textSubtle} />
-            <Text style={styles.notFoundText}>Session not found</Text>
+            <Text style={styles.notFoundText}>Session details unavailable</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -161,15 +161,19 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
   }
 
   const handleSubmitReport = (payload: { lectureSession: string; held: boolean; reason: string }) => {
-    // TODO(api-wiring): POST /api/reporting/reports/
-    console.log('Report submitted:', payload);
-    setSubmitVisible(false);
+    submitReportMutation.mutate(payload, {
+      onSuccess: () => {
+        setSubmitVisible(false);
+      },
+    });
   };
 
   const handleLecturerResponse = (payload: { reportId: string; responseText: string }) => {
-    // TODO(api-wiring): POST /api/reporting/reports/{id}/respond/
-    console.log('Lecturer response:', payload);
-    setLecturerResponseVisible(false);
+    respondReportMutation.mutate(payload, {
+      onSuccess: () => {
+        setLecturerResponseVisible(false);
+      },
+    });
   };
 
   return (
@@ -247,7 +251,7 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
           <View style={styles.bannerWrapper}>
             <ReportWindowBanner
               session={session}
-              isClassRep={profile.isClassRep}
+              isClassRep={isClassRep}
               onSubmitReport={() => setSubmitVisible(true)}
             />
           </View>
@@ -283,7 +287,7 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
         visible={reportDetailVisible}
         onClose={() => setReportDetailVisible(false)}
         report={selectedReport}
-        canRespond={profile.role === 'lecturer' && selectedReport?.status === 'pending'}
+        canRespond={isLecturer && selectedReport?.status === 'pending'}
         onRespondPress={() => {
           setReportDetailVisible(false);
           setTimeout(() => setLecturerResponseVisible(true), 250);

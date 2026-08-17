@@ -2,10 +2,10 @@ import React, { useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, AlertCircle, CheckCircle, XCircle, MapPin, Clock } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
@@ -14,7 +14,8 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { LecturerResponseBottomSheet } from '@/components/bottom-sheets/LecturerResponseBottomSheet';
 import { Report } from '@/types';
-import { MOCK_REPORTS, MOCK_PROFILE } from '@/constants/mockData';
+import { useAuth } from '@/context/AuthContext';
+import { useReports, useRespondReport } from '@/hooks/useReports';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -38,15 +39,30 @@ export const ReportDetailScreen: React.FC<ReportDetailScreenProps> = ({
   reportId,
   onBack,
 }) => {
-  const profile = MOCK_PROFILE;
+  const { user } = useAuth();
+  const { reports, isLoading, isError } = useReports();
+  const respondMutation = useRespondReport();
+
   const report: Report | undefined = useMemo(
-    () => MOCK_REPORTS.find((r) => r.id === reportId),
-    [reportId]
+    () => reports.find((r) => r.id === reportId),
+    [reports, reportId]
   );
 
   const [lecturerResponseVisible, setLecturerResponseVisible] = useState(false);
 
-  if (!report) {
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <Pressable onPress={onBack} style={styles.backBtn}>
+            <ArrowLeft size={22} color={colors.textMain} />
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isError || !report) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
@@ -70,13 +86,15 @@ export const ReportDetailScreen: React.FC<ReportDetailScreenProps> = ({
     report.status === 'disputed'  ? 'warning' : 'secondary';
 
   const canRespond =
-    profile.role === 'lecturer' &&
+    user?.role === 'lecturer' &&
     !report.lecturerResponse;
 
   const handleLecturerResponse = (payload: { reportId: string; responseText: string }) => {
-    // TODO(api-wiring): POST /api/reporting/reports/{id}/respond/
-    console.log('Response submitted:', payload);
-    setLecturerResponseVisible(false);
+    respondMutation.mutate(payload, {
+      onSuccess: () => {
+        setLecturerResponseVisible(false);
+      },
+    });
   };
 
   return (

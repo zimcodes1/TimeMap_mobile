@@ -2,10 +2,10 @@ import React, { useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   TextInput,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, SlidersHorizontal } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
@@ -13,7 +13,8 @@ import { ScheduleAgendaList } from '@/components/schedules/ScheduleAgendaList';
 import { ScheduleFilterBottomSheet, ScheduleFilterValues } from '@/components/bottom-sheets/ScheduleFilterBottomSheet';
 import { CalendarSessionPreviewBottomSheet } from '@/components/bottom-sheets/CalendarSessionPreviewBottomSheet';
 import { Session } from '@/types';
-import { MOCK_SESSIONS } from '@/constants/mockData';
+import { useAllSchedules } from '@/hooks/useSchedules';
+import { WifiOff } from 'lucide-react-native';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -27,14 +28,22 @@ export const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigateToSess
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   const [previewSession, setPreviewSession] = useState<Session | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [filters, setFilters] = useState<ScheduleFilterValues>({
     status: 'all',
     courseId: null,
   });
 
-  const sessions = useMemo(() => {
-    let result = [...MOCK_SESSIONS];
+  const {
+    sessions: rawSessions,
+    isLoading,
+    isRefreshing,
+    isError,
+    isOffline,
+    refetch,
+  } = useAllSchedules();
+
+  const filteredSessions = useMemo(() => {
+    let result = [...rawSessions];
 
     // Status filter
     if (filters.status !== 'all') {
@@ -58,29 +67,31 @@ export const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigateToSess
     }
 
     return result;
-  }, [filters, searchQuery]);
+  }, [rawSessions, filters, searchQuery]);
 
   const courses = useMemo(
-    () => [...new Map(MOCK_SESSIONS.map((s) => [s.course.id, s.course])).values()],
-    []
+    () => [...new Map(rawSessions.map((s) => [s.course.id, s.course])).values()],
+    [rawSessions]
   );
 
   const activeFilterCount =
     (filters.status !== 'all' ? 1 : 0) + (filters.courseId ? 1 : 0);
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    // TODO(api-wiring): refetch session list
-    setTimeout(() => setIsRefreshing(false), 800);
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Calendar</Text>
-          <Text style={styles.subtitle}>Your full term schedule</Text>
+          <View>
+            <Text style={styles.title}>Calendar</Text>
+            <Text style={styles.subtitle}>Your full term schedule</Text>
+          </View>
+          {isOffline ? (
+            <View style={styles.offlinePill}>
+              <WifiOff size={12} color={colors.warning} />
+              <Text style={styles.offlinePillText}>Offline</Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Search + filter row */}
@@ -119,9 +130,11 @@ export const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigateToSess
         {/* Session list */}
         <View style={styles.listWrapper}>
           <ScheduleAgendaList
-            sessions={sessions}
+            sessions={filteredSessions}
+            isLoading={isLoading}
+            isError={isError}
             isRefreshing={isRefreshing}
-            onRefresh={handleRefresh}
+            onRefresh={refetch}
             onSessionPress={(s) => {
               setPreviewSession(s);
             }}
@@ -162,6 +175,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     paddingTop: 16,
     paddingBottom: 14,
   },
@@ -175,6 +191,23 @@ const styles = StyleSheet.create({
     color: colors.textSubtle,
     fontWeight: '600',
     marginTop: 2,
+  },
+  offlinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.25)',
+    marginTop: 4,
+  },
+  offlinePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.warning,
   },
   searchRow: {
     flexDirection: 'row',

@@ -1,6 +1,5 @@
 import { apiClient } from './apiClient';
 import { Notification, NotificationType } from '@/types';
-import { MOCK_NOTIFICATIONS, MOCK_UNREAD_COUNT } from '@/constants/mockData';
 
 export function mapBackendToNotification(raw: any): Notification {
   return {
@@ -30,8 +29,8 @@ export const notificationsAPI = {
       }
       return [];
     } catch (error) {
-      console.warn('[notificationsAPI] Failed to fetch inbox, using mock fallback:', error);
-      return MOCK_NOTIFICATIONS;
+      console.warn('[notificationsAPI] Failed to fetch inbox:', error);
+      throw error;
     }
   },
 
@@ -45,8 +44,8 @@ export const notificationsAPI = {
       });
       return res.unread_count ?? res.count ?? 0;
     } catch (error) {
-      console.warn('[notificationsAPI] Failed to fetch unread count, using fallback:', error);
-      return MOCK_UNREAD_COUNT;
+      console.warn('[notificationsAPI] Failed to fetch unread count:', error);
+      return 0;
     }
   },
 

@@ -5,12 +5,11 @@ import {
   CalendarDays,
   CalendarRange,
   FileText,
-  Bell,
+  BarChart3,
   User,
 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
-import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 
 // ─── Custom tab badge (notification count) ────────────────────────────────────
 
@@ -45,8 +44,6 @@ const TabIcon: React.FC<TabIconProps> = ({ Icon, focused, badge }) => (
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 export default function TabsLayout() {
-  const unreadCount = useUnreadNotificationCount();
-
   return (
     <Tabs
       screenOptions={{
@@ -86,11 +83,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="notifications"
+        name="analytics"
         options={{
-          title: 'Inbox',
+          title: 'Analytics',
           tabBarIcon: ({ focused }) => (
-            <TabIcon Icon={Bell} focused={focused} badge={unreadCount} />
+            <TabIcon Icon={BarChart3} focused={focused} />
           ),
         }}
       />

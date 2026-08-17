@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { schedulesAPI } from '@/api/schedulesAPI';
+import { schedulesAPI, GetSessionsParams } from '@/api/schedulesAPI';
 import { localDB } from '@/lib/storage/db';
 import { Session, SessionStatus } from '@/types';
 import { useState } from 'react';
@@ -50,6 +50,42 @@ export function useTodaySessions(
   return {
     sessions: filteredSessions,
     allSessions: query.data ?? [],
+    isLoading: query.isLoading,
+    isRefreshing: query.isRefetching,
+    isError: query.isError,
+    error: query.error,
+    isOffline,
+    refetch: query.refetch,
+  };
+}
+
+export function useAllSchedules(params: GetSessionsParams = {}) {
+  const [isOffline, setIsOffline] = useState(false);
+  const cacheKey = `all_schedules_${params.startDate ?? 'all'}_${params.endDate ?? 'all'}_${params.courseId ?? 'all'}`;
+
+  const query = useQuery<Session[]>({
+    queryKey: ['sessions', 'all', params.startDate, params.endDate, params.courseId, params.status],
+    queryFn: async () => {
+      try {
+        const liveSessions = await schedulesAPI.getSessions(params);
+        await localDB.setCache(cacheKey, liveSessions);
+        setIsOffline(false);
+        return liveSessions;
+      } catch (err) {
+        console.warn('[useAllSchedules] Fetch failed, checking SQLite cache:', err);
+        const cached = await localDB.getCache<Session[]>(cacheKey);
+        if (cached && cached.length > 0) {
+          setIsOffline(true);
+          return cached;
+        }
+        throw err;
+      }
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  return {
+    sessions: query.data ?? [],
     isLoading: query.isLoading,
     isRefreshing: query.isRefetching,
     isError: query.isError,

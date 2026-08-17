@@ -2,11 +2,11 @@ import React, { useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   RefreshControl,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { FileText, Clock } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
@@ -16,8 +16,12 @@ import { SubmitReportBottomSheet } from '@/components/bottom-sheets/SubmitReport
 import { ReportDetailBottomSheet } from '@/components/bottom-sheets/ReportDetailBottomSheet';
 import { LecturerResponseBottomSheet } from '@/components/bottom-sheets/LecturerResponseBottomSheet';
 import { RoleHelpBottomSheet } from '@/components/bottom-sheets/RoleHelpBottomSheet';
+import { EmptyStateView } from '@/components/common/EmptyStateView';
 import { Report, Session } from '@/types';
-import { MOCK_REPORTS, MOCK_REPORTABLE_SESSIONS, MOCK_PROFILE } from '@/constants/mockData';
+import { useAuth } from '@/context/AuthContext';
+import { useReports, useSubmitReport, useRespondReport } from '@/hooks/useReports';
+import { useTodaySessions } from '@/hooks/useSchedules';
+import { WifiOff } from 'lucide-react-native';
 
 // ─── Segmented tabs ────────────────────────────────────────────────────────────
 
@@ -47,13 +51,27 @@ export interface ReportsScreenProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSession }) => {
-  const profile = MOCK_PROFILE;
-  const isClassRep = profile.isClassRep;
-  const isLecturer = profile.role === 'lecturer';
+  const { user } = useAuth();
+  const isClassRep = Boolean(user?.isClassRep);
+  const isLecturer = user?.role === 'lecturer';
+
+  const {
+    reports,
+    isLoading: isLoadingReports,
+    isRefreshing: isRefreshingReports,
+    isError: isErrorReports,
+    isOffline: isOfflineReports,
+    refetch: refetchReports,
+  } = useReports();
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const { allSessions } = useTodaySessions(todayStr, 'all', { canViewPast: true });
+
+  const submitReportMutation = useSubmitReport();
+  const respondReportMutation = useRespondReport();
 
   const [classRepTab, setClassRepTab] = useState<ClassRepTab>('to_report');
   const [lecturerTab, setLecturerTab] = useState<LecturerTab>('needs_response');
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [roleHelpVisible, setRoleHelpVisible] = useState(false);
 
   // Bottom sheet state
@@ -63,26 +81,33 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
   const [lecturerResponseVisible, setLecturerResponseVisible] = useState(false);
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    // TODO(api-wiring): refetch reports
-    setTimeout(() => setIsRefreshing(false), 800);
+    refetchReports();
   };
 
   const handleSubmitReport = (payload: { lectureSession: string; held: boolean; reason: string }) => {
-    // TODO(api-wiring): POST /api/reporting/reports/
-    console.log('Submit report:', payload);
-    setSubmitReportSession(null);
+    submitReportMutation.mutate(payload, {
+      onSuccess: () => {
+        setSubmitReportSession(null);
+      },
+    });
   };
 
   const handleLecturerResponse = (payload: { reportId: string; responseText: string }) => {
-    // TODO(api-wiring): POST /api/reporting/reports/{id}/respond/
-    console.log('Lecturer response:', payload);
-    setLecturerResponseVisible(false);
+    respondReportMutation.mutate(payload, {
+      onSuccess: () => {
+        setLecturerResponseVisible(false);
+      },
+    });
   };
 
   const lecturerPendingReports = useMemo(
-    () => MOCK_REPORTS.filter((r) => r.status === 'pending'),
-    []
+    () => reports.filter((r) => r.status === 'pending'),
+    [reports]
+  );
+
+  const toReportSessions = useMemo(
+    () => allSessions.filter((s) => s.reportWindowOpen && !s.reportId),
+    [allSessions]
   );
 
   // ─── Student (non-rep) view ───────────────────────────────────────────────
@@ -112,14 +137,22 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
 
   if (isLecturer) {
     const displayedReports =
-      lecturerTab === 'needs_response' ? lecturerPendingReports : MOCK_REPORTS;
+      lecturerTab === 'needs_response' ? lecturerPendingReports : reports;
 
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.title}>Reports</Text>
-            <Text style={styles.subtitle}>Manage class rep reports</Text>
+            <View>
+              <Text style={styles.title}>Reports</Text>
+              <Text style={styles.subtitle}>Manage class rep reports</Text>
+            </View>
+            {isOfflineReports ? (
+              <View style={styles.offlinePill}>
+                <WifiOff size={12} color={colors.warning} />
+                <Text style={styles.offlinePillText}>Offline</Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Segmented tabs */}
@@ -146,14 +179,18 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
-                refreshing={isRefreshing}
+                refreshing={isRefreshingReports}
                 onRefresh={handleRefresh}
                 tintColor={colors.primary}
                 colors={[colors.primary]}
               />
             }
           >
-            {displayedReports.length === 0 ? (
+            {isLoadingReports ? (
+              <EmptyStateView variant="loading" />
+            ) : isErrorReports ? (
+              <EmptyStateView variant="error" onRetry={handleRefresh} />
+            ) : displayedReports.length === 0 ? (
               <EmptyState icon={FileText} message="No reports here" />
             ) : (
               displayedReports.map((report) => (
@@ -193,15 +230,23 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
 
   // ─── Class rep view ───────────────────────────────────────────────────────
 
-  const toReport = MOCK_REPORTABLE_SESSIONS;
-  const submitted = MOCK_REPORTS;
+  const toReport = toReportSessions;
+  const submitted = reports;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Reports</Text>
-          <Text style={styles.subtitle}>Class rep reporting dashboard</Text>
+          <View>
+            <Text style={styles.title}>Reports</Text>
+            <Text style={styles.subtitle}>Class rep reporting dashboard</Text>
+          </View>
+          {isOfflineReports ? (
+            <View style={styles.offlinePill}>
+              <WifiOff size={12} color={colors.warning} />
+              <Text style={styles.offlinePillText}>Offline</Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Segmented tabs */}
@@ -228,14 +273,18 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={isRefreshing}
+              refreshing={isRefreshingReports}
               onRefresh={handleRefresh}
               tintColor={colors.primary}
               colors={[colors.primary]}
             />
           }
         >
-          {classRepTab === 'to_report' ? (
+          {isLoadingReports ? (
+            <EmptyStateView variant="loading" />
+          ) : isErrorReports ? (
+            <EmptyStateView variant="error" onRetry={handleRefresh} />
+          ) : classRepTab === 'to_report' ? (
             toReport.length === 0 ? (
               <EmptyState
                 icon={Clock}
@@ -298,6 +347,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     paddingTop: 16,
     paddingBottom: 12,
   },
@@ -311,6 +363,23 @@ const styles = StyleSheet.create({
     color: colors.textSubtle,
     fontWeight: '600',
     marginTop: 2,
+  },
+  offlinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.25)',
+    marginTop: 4,
+  },
+  offlinePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.warning,
   },
   segmentRow: {
     flexDirection: 'row',

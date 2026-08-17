@@ -1,6 +1,5 @@
 import { apiClient } from './apiClient';
 import { Session, SessionStatus } from '@/types';
-import { MOCK_SESSIONS } from '@/constants/mockData';
 
 export interface GetSessionsParams {
   date?: string;            // YYYY-MM-DD
@@ -72,17 +71,8 @@ export const schedulesAPI = {
 
       return [];
     } catch (error) {
-      console.warn('[schedulesAPI] API call failed, using mock data fallback:', error);
-      let result = [...MOCK_SESSIONS];
-      if (params.startDate) {
-        result = result.filter((s) => s.date >= params.startDate!);
-      } else if (params.date) {
-        result = result.filter((s) => s.date === params.date);
-      }
-      if (params.status && params.status !== 'scheduled') {
-        result = result.filter((s) => s.status === params.status);
-      }
-      return result;
+      console.warn('[schedulesAPI] API call failed:', error);
+      throw error;
     }
   },
 
@@ -97,8 +87,6 @@ export const schedulesAPI = {
       return mapBackendToSession(raw);
     } catch (error) {
       console.warn(`[schedulesAPI] Failed to fetch session ${id}:`, error);
-      const mock = MOCK_SESSIONS.find((s) => s.id === id);
-      if (mock) return mock;
       throw error;
     }
   },

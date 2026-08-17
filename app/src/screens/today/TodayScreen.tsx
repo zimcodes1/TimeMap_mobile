@@ -2,21 +2,24 @@ import React, { useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   Pressable,
 } from 'react-native';
-import { SlidersHorizontal, WifiOff } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Bell, WifiOff } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { DateStrip } from '@/components/schedules/DateStrip';
 import { StatusFilterChips } from '@/components/schedules/StatusFilterChips';
 import { ScheduleAgendaList } from '@/components/schedules/ScheduleAgendaList';
+import { QuickAnalyticsCard } from '@/components/cards/QuickAnalyticsCard';
 import { SessionQuickActionsBottomSheet } from '@/components/bottom-sheets/SessionQuickActionsBottomSheet';
 import { SubmitReportBottomSheet } from '@/components/bottom-sheets/SubmitReportBottomSheet';
 import { Session, SessionStatus } from '@/types';
-import { MOCK_SESSIONS, MOCK_PROFILE } from '@/constants/mockData';
 import { useAuth } from '@/context/AuthContext';
 import { useTodaySessions } from '@/hooks/useSchedules';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
+import { useSubmitReport } from '@/hooks/useReports';
 import { router } from 'expo-router';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -47,8 +50,20 @@ export interface TodayScreenProps {
 
 export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession }) => {
   const { user } = useAuth();
-  const profile = user ?? MOCK_PROFILE;
+  const profile = user ?? {
+    id: '',
+    fullName: 'User',
+    email: '',
+    role: 'student',
+    isClassRep: false,
+    department: '',
+    pushEnabled: true,
+  };
   const canViewPast = Boolean(profile.isClassRep || profile.role === 'lecturer');
+
+  const unreadCount = useUnreadNotificationCount();
+  const { analytics } = useAnalytics();
+  const submitReportMutation = useSubmitReport();
 
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [statusFilter, setStatusFilter] = useState<SessionStatus | 'all'>('all');
@@ -67,14 +82,13 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
   } = useTodaySessions(selectedDate, statusFilter, { canViewPast });
 
   const activeDates = useMemo(() => {
-    const sourceSessions = allSessions.length > 0 ? allSessions : (isOffline ? MOCK_SESSIONS : []);
-    let dates = [...new Set(sourceSessions.map((s) => s.date))];
+    let dates = [...new Set(allSessions.map((s) => s.date))];
     if (!canViewPast) {
       const today = todayStr();
       dates = dates.filter((d) => d >= today);
     }
     return dates;
-  }, [allSessions, isOffline, canViewPast]);
+  }, [allSessions, canViewPast]);
 
   const handleMorePress = (session: Session) => {
     setSelectedSession(session);
@@ -82,9 +96,11 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
   };
 
   const handleSubmitReport = (payload: { lectureSession: string; held: boolean; reason: string }) => {
-    // TODO(api-wiring): call POST /api/reporting/reports/
-    console.log('Submit report:', payload);
-    setSubmitReportVisible(false);
+    submitReportMutation.mutate(payload, {
+      onSuccess: () => {
+        setSubmitReportVisible(false);
+      },
+    });
   };
 
   return (
@@ -103,11 +119,24 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
                 <Text style={styles.offlinePillText}>Offline</Text>
               </View>
             ) : null}
-            <Pressable style={styles.filterBtn} onPress={() => { router.replace('/(tabs)/profile'); }}>
-              <SlidersHorizontal size={20} color={colors.textMuted} />
+            <Pressable style={styles.notifBtn} onPress={() => { router.push('/notifications'); }}>
+              <Bell size={20} color={colors.textMain} />
+              {unreadCount > 0 ? (
+                <View style={styles.headerBadge}>
+                  <Text style={styles.headerBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                </View>
+              ) : null}
             </Pressable>
           </View>
         </View>
+
+        {/* Quick Analytics Banner (Class Reps & Lecturers only) */}
+        {canViewPast ? (
+          <QuickAnalyticsCard
+            summary={analytics?.summary}
+            onPress={() => router.push('/(tabs)/analytics')}
+          />
+        ) : null}
 
         {/* Date strip */}
         <View style={styles.dateStripWrapper}>
@@ -211,7 +240,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.warning,
   },
-  filterBtn: {
+  notifBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
@@ -220,7 +249,26 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
     marginTop: 4,
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: colors.danger,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    minWidth: 16,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.background,
+  },
+  headerBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   dateStripWrapper: {
     marginBottom: 12,

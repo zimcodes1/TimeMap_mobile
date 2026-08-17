@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   User,
   Bell,
@@ -22,7 +22,6 @@ import { Toggle } from '@/components/ui/Toggle';
 import { LogoutConfirmBottomSheet } from '@/components/bottom-sheets/LogoutConfirmBottomSheet';
 import { PushPermissionBottomSheet } from '@/components/bottom-sheets/PushPermissionBottomSheet';
 import { AccountDetailsBottomSheet } from '@/components/bottom-sheets/AccountDetailsBottomSheet';
-import { MOCK_PROFILE } from '@/constants/mockData';
 import { useAuth } from '@/context/AuthContext';
 import Constants from 'expo-constants';
 
@@ -36,7 +35,16 @@ export interface ProfileScreenProps {
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
   const { user } = useAuth();
-  const profile = user ?? MOCK_PROFILE;
+  const profile = user ?? {
+    id: '',
+    fullName: 'User Profile',
+    email: '',
+    role: 'student' as const,
+    isClassRep: false,
+    department: '',
+    pushEnabled: true,
+    requiresPasswordReset: false,
+  };
 
   const [pushEnabled, setPushEnabled] = useState(profile.pushEnabled);
   const [logoutVisible, setLogoutVisible] = useState(false);
