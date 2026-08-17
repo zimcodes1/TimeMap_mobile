@@ -5,9 +5,19 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import Toast from 'react-native-toast-message';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppDarkTheme, setAppDefaultFont, colors } from '@/theme';
 import { toastConfig } from '@/components/ui/ToastConfig';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 1000 * 30,
+    },
+  },
+});
 
 // Keep the splash screen visible while loading resources
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -72,13 +82,15 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <ThemeProvider value={AppDarkTheme}>
-        <StatusBar style="light" backgroundColor={colors.background} />
-        <NavigationGate />
-        <Toast config={toastConfig} />
-      </ThemeProvider>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ThemeProvider value={AppDarkTheme}>
+          <StatusBar style="light" backgroundColor={colors.background} />
+          <NavigationGate />
+          <Toast config={toastConfig} />
+        </ThemeProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

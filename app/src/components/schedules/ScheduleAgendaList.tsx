@@ -11,6 +11,7 @@ import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { Session } from '@/types';
 import { SessionCard } from '@/components/cards/SessionCard';
+import { EmptyStateView } from '@/components/common/EmptyStateView';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,20 +74,41 @@ export const ScheduleAgendaList: React.FC<ScheduleAgendaListProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <View style={styles.centreState}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.stateText}>Loading sessions…</Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContentEmpty}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          ) : undefined
+        }
+      >
+        <EmptyStateView variant="loading" />
+      </ScrollView>
     );
   }
 
   if (isError) {
     return (
-      <View style={styles.centreState}>
-        <CalendarX size={40} color={colors.danger} />
-        <Text style={styles.stateText}>Failed to load sessions.</Text>
-        <Text style={styles.stateSubtext}>Pull down to try again.</Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContentEmpty}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          ) : undefined
+        }
+      >
+        <EmptyStateView variant="error" onRetry={onRefresh} />
+      </ScrollView>
     );
   }
 
@@ -99,10 +121,21 @@ export const ScheduleAgendaList: React.FC<ScheduleAgendaListProps> = ({
 
   if (dateKeys.length === 0) {
     return (
-      <View style={styles.centreState}>
-        <CalendarX size={40} color={colors.textSubtle} />
-        <Text style={styles.stateText}>{emptyMessage}</Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContentEmpty}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          ) : undefined
+        }
+      >
+        <EmptyStateView variant="empty_schedule" subtitle={emptyMessage} />
+      </ScrollView>
     );
   }
 
@@ -150,6 +183,11 @@ export const ScheduleAgendaList: React.FC<ScheduleAgendaListProps> = ({
 
 const styles = StyleSheet.create({
   scrollContent: {
+    paddingBottom: 24,
+  },
+  scrollContentEmpty: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingBottom: 24,
   },
   centreState: {

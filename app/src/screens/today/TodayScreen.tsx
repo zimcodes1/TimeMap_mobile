@@ -5,7 +5,7 @@ import {
   SafeAreaView,
   Pressable,
 } from 'react-native';
-import { SlidersHorizontal } from 'lucide-react-native';
+import { SlidersHorizontal, WifiOff } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { DateStrip } from '@/components/schedules/DateStrip';
@@ -15,6 +15,8 @@ import { SessionQuickActionsBottomSheet } from '@/components/bottom-sheets/Sessi
 import { SubmitReportBottomSheet } from '@/components/bottom-sheets/SubmitReportBottomSheet';
 import { Session, SessionStatus } from '@/types';
 import { MOCK_SESSIONS, MOCK_PROFILE } from '@/constants/mockData';
+import { useAuth } from '@/context/AuthContext';
+import { useTodaySessions } from '@/hooks/useSchedules';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -25,7 +27,7 @@ function todayStr(): string {
 function greetingFor(name: string): string {
   const hr = new Date().getHours();
   const salutation = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
-  const firstName = name.split(' ')[0];
+  const firstName = name ? name.split(' ')[0] : 'User';
   return `${salutation}, ${firstName}`;
 }
 
@@ -43,29 +45,29 @@ export interface TodayScreenProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession }) => {
+  const { user } = useAuth();
+  const profile = user ?? MOCK_PROFILE;
+
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [statusFilter, setStatusFilter] = useState<SessionStatus | 'all'>('all');
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const [submitReportVisible, setSubmitReportVisible] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const activeDates = useMemo(
-    () => [...new Set(MOCK_SESSIONS.map((s) => s.date))],
-    []
-  );
+  const {
+    sessions,
+    allSessions,
+    isLoading,
+    isRefreshing,
+    isError,
+    isOffline,
+    refetch,
+  } = useTodaySessions(selectedDate, statusFilter);
 
-  const filteredSessions = useMemo(() => {
-    const dateFiltered = MOCK_SESSIONS.filter((s) => s.date === selectedDate);
-    if (statusFilter === 'all') return dateFiltered;
-    return dateFiltered.filter((s) => s.status === statusFilter);
-  }, [selectedDate, statusFilter]);
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    // TODO(api-wiring): refetch sessions for selectedDate
-    setTimeout(() => setIsRefreshing(false), 800);
-  };
+  const activeDates = useMemo(() => {
+    const dates = [...new Set([...allSessions, ...MOCK_SESSIONS].map((s) => s.date))];
+    return dates;
+  }, [allSessions]);
 
   const handleMorePress = (session: Session) => {
     setSelectedSession(session);
@@ -84,12 +86,20 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>{greetingFor(MOCK_PROFILE.fullName)}</Text>
+            <Text style={styles.greeting}>{greetingFor(profile.fullName)}</Text>
             <Text style={styles.dateLabel}>{formatDateDisplay(selectedDate)}</Text>
           </View>
-          <Pressable style={styles.filterBtn} onPress={() => {}}>
-            <SlidersHorizontal size={20} color={colors.textMuted} />
-          </Pressable>
+          <View style={styles.headerRight}>
+            {isOffline ? (
+              <View style={styles.offlinePill}>
+                <WifiOff size={12} color={colors.warning} />
+                <Text style={styles.offlinePillText}>Offline</Text>
+              </View>
+            ) : null}
+            <Pressable style={styles.filterBtn} onPress={() => {}}>
+              <SlidersHorizontal size={20} color={colors.textMuted} />
+            </Pressable>
+          </View>
         </View>
 
         {/* Date strip */}
@@ -109,9 +119,11 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
         {/* Sessions list */}
         <View style={styles.listWrapper}>
           <ScheduleAgendaList
-            sessions={filteredSessions}
+            sessions={sessions}
+            isLoading={isLoading}
+            isError={isError}
             isRefreshing={isRefreshing}
-            onRefresh={handleRefresh}
+            onRefresh={refetch}
             onSessionPress={(s) => onNavigateToSession(s.id)}
             onSessionMorePress={handleMorePress}
             emptyMessage={`No ${statusFilter === 'all' ? '' : statusFilter + ' '}sessions for this day.`}
@@ -124,7 +136,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
         visible={quickActionsVisible}
         onClose={() => setQuickActionsVisible(false)}
         session={selectedSession}
-        isClassRep={MOCK_PROFILE.isClassRep}
+        isClassRep={profile.isClassRep}
         onViewDetails={() => selectedSession && onNavigateToSession(selectedSession.id)}
         onSubmitReport={() => setSubmitReportVisible(true)}
       />
@@ -168,6 +180,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSubtle,
     fontWeight: '600',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  offlinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.25)',
+    marginTop: 4,
+  },
+  offlinePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.warning,
   },
   filterBtn: {
     width: 40,

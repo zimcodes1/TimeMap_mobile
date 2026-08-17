@@ -7,14 +7,19 @@ import {
   RefreshControl,
   Pressable,
 } from 'react-native';
-import { Bell, CheckCheck } from 'lucide-react-native';
+import { Bell, CheckCheck, WifiOff } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { NotificationCard } from '@/components/cards/NotificationCard';
 import { NotificationDetailBottomSheet } from '@/components/bottom-sheets/NotificationDetailBottomSheet';
 import { NotificationFilterBottomSheet, NotificationFilterValues } from '@/components/bottom-sheets/NotificationFilterBottomSheet';
+import { EmptyStateView } from '@/components/common/EmptyStateView';
 import { Notification } from '@/types';
-import { MOCK_NOTIFICATIONS, MOCK_UNREAD_COUNT } from '@/constants/mockData';
+import {
+  useNotificationsInbox,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+} from '@/hooks/useNotifications';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -29,15 +34,29 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   onNavigateToSession,
   onNavigateToReport,
 }) => {
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
-  const [unreadCount, setUnreadCount] = useState(MOCK_UNREAD_COUNT);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const {
+    notifications,
+    isLoading,
+    isRefreshing,
+    isError,
+    isOffline,
+    refetch,
+  } = useNotificationsInbox();
+
+  const markReadMutation = useMarkNotificationRead();
+  const markAllReadMutation = useMarkAllNotificationsRead();
+
   const [filterVisible, setFilterVisible] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [filters, setFilters] = useState<NotificationFilterValues>({
     type: 'all',
     unreadOnly: false,
   });
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.isRead).length,
+    [notifications]
+  );
 
   const displayedNotifications = useMemo(() => {
     let result = [...notifications];
@@ -50,28 +69,15 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     return result;
   }, [notifications, filters]);
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    // TODO(api-wiring): GET /api/notifications/inbox/
-    setTimeout(() => setIsRefreshing(false), 800);
-  };
-
   const handleNotificationPress = (notification: Notification) => {
-    // Mark as read locally
-    // TODO(api-wiring): POST /api/notifications/inbox/{id}/read/
     if (!notification.isRead) {
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
-      );
-      setUnreadCount((c) => Math.max(0, c - 1));
+      markReadMutation.mutate(notification.id);
     }
     setSelectedNotification(notification);
   };
 
   const handleMarkAllRead = () => {
-    // TODO(api-wiring): POST /api/notifications/inbox/mark-all-read/
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    setUnreadCount(0);
+    markAllReadMutation.mutate();
   };
 
   const handleNavigateToRelated = (notification: Notification | null) => {
@@ -97,6 +103,12 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
             )}
           </View>
           <View style={styles.headerActions}>
+            {isOffline ? (
+              <View style={styles.offlinePill}>
+                <WifiOff size={12} color={colors.warning} />
+                <Text style={styles.offlinePillText}>Offline</Text>
+              </View>
+            ) : null}
             {unreadCount > 0 ? (
               <Pressable onPress={handleMarkAllRead} style={styles.markAllBtn}>
                 <CheckCheck size={16} color={colors.primary} />
@@ -145,22 +157,30 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         {/* Notification list */}
         <ScrollView
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={displayedNotifications.length === 0 ? styles.scrollContentEmpty : undefined}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
-              onRefresh={handleRefresh}
+              onRefresh={refetch}
               tintColor={colors.primary}
               colors={[colors.primary]}
             />
           }
         >
-          {displayedNotifications.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Bell size={40} color={colors.textSubtle} />
-              <Text style={styles.emptyText}>
-                {filters.unreadOnly ? 'No unread notifications' : 'No notifications yet'}
-              </Text>
-            </View>
+          {isLoading ? (
+            <EmptyStateView variant="loading" />
+          ) : isError ? (
+            <EmptyStateView variant="error" onRetry={refetch} />
+          ) : displayedNotifications.length === 0 ? (
+            <EmptyStateView
+              variant={filters.unreadOnly ? 'filter_empty' : 'empty_schedule'}
+              title={filters.unreadOnly ? 'No Unread Notifications' : 'Inbox is Empty'}
+              subtitle={
+                filters.unreadOnly
+                  ? 'You have read all your notifications.'
+                  : 'You have no notifications at the moment.'
+              }
+            />
           ) : (
             displayedNotifications.map((n) => (
               <NotificationCard
@@ -220,6 +240,26 @@ const styles = StyleSheet.create({
     color: colors.textSubtle,
     fontWeight: '600',
     marginTop: 2,
+  },
+  scrollContentEmpty: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  offlinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.25)',
+  },
+  offlinePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.warning,
   },
   headerActions: {
     flexDirection: 'row',

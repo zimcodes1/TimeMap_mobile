@@ -110,7 +110,6 @@ export async function apiClient<T = any>(
 
   let response: Response;
   try {
-    console.log(`Attepting login at: ${url}`)
     response = await fetch(url, {
       ...restOptions,
       headers,

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
-import { MOCK_UNREAD_COUNT } from '@/constants/mockData';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 
 // ─── Custom tab badge (notification count) ────────────────────────────────────
 
@@ -45,6 +45,8 @@ const TabIcon: React.FC<TabIconProps> = ({ Icon, focused, badge }) => (
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 export default function TabsLayout() {
+  const unreadCount = useUnreadNotificationCount();
+
   return (
     <Tabs
       screenOptions={{
@@ -88,7 +90,7 @@ export default function TabsLayout() {
         options={{
           title: 'Inbox',
           tabBarIcon: ({ focused }) => (
-            <TabIcon Icon={Bell} focused={focused} badge={MOCK_UNREAD_COUNT} />
+            <TabIcon Icon={Bell} focused={focused} badge={unreadCount} />
           ),
         }}
       />
