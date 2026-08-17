@@ -14,9 +14,11 @@
     },
     "ios": {
       "icon": "./assets/expo.icon",
-      "userInterfaceStyle": "dark"
+      "userInterfaceStyle": "dark",
+      "bundleIdentifier": "com.nsuk.timemap"
     },
     "android": {
+      "package": "com.nsuk.timemap",
       "adaptiveIcon": {
         "backgroundColor": "#09090b",
         "foregroundImage": "./assets/images/logo.png",
