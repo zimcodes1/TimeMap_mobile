@@ -5,10 +5,12 @@ import { useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { ResetPasswordScreen } from '@/screens/auth/ResetPasswordScreen';
 import { resetPasswordSchema, ResetPasswordSchema } from '@/lib/validation/auth';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ResetPasswordRoute() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { user, resetPassword } = useAuth();
 
   const { control, handleSubmit } = useForm<ResetPasswordSchema>({
     resolver: zodResolver(resetPasswordSchema),
@@ -21,16 +23,8 @@ export default function ResetPasswordRoute() {
   const onSubmit = handleSubmit(async (data) => {
     setIsLoading(true);
     try {
-      console.log('Resetting password:', data);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      Toast.show({
-        type: 'success',
-        text1: 'Password Reset Successful',
-        text2: 'Welcome to TimeMap!',
-      });
-
-      router.replace('/(tabs)' as any);
+      await resetPassword(data.newPassword);
+      // Navigation is handled automatically by NavigationGate in _layout.tsx once requiresPasswordReset is updated
     } catch (error: any) {
       const errorMsg =
         error?.message || 'Failed to reset password. Please try again.';
@@ -44,13 +38,17 @@ export default function ResetPasswordRoute() {
     }
   });
 
+  const displayIdentifier =
+    user?.matricNumber || user?.staffId || user?.email || 'User Account';
+
   return (
     <ResetPasswordScreen
       control={control}
       isLoading={isLoading}
       onSubmit={onSubmit}
-      userIdentifier="Staff / User Account"
+      userIdentifier={displayIdentifier}
       onNavigateToLogin={() => router.replace('/(auth)/login')}
     />
   );
 }
+

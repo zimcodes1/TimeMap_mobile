@@ -118,11 +118,11 @@ export const AnimatedBackground: React.FC = () => {
 
   const middleSpin = middleAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['360deg', '0deg'],
+    outputRange: ['0deg', '-360deg'],
   });
   const middleCounterSpin = middleAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['-360deg', '0deg'],
+    outputRange: ['0deg', '360deg'],
   });
 
   const outerSpin = outerAnim.interpolate({

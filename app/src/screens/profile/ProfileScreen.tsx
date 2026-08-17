@@ -23,6 +23,7 @@ import { LogoutConfirmBottomSheet } from '@/components/bottom-sheets/LogoutConfi
 import { PushPermissionBottomSheet } from '@/components/bottom-sheets/PushPermissionBottomSheet';
 import { AccountDetailsBottomSheet } from '@/components/bottom-sheets/AccountDetailsBottomSheet';
 import { MOCK_PROFILE } from '@/constants/mockData';
+import { useAuth } from '@/context/AuthContext';
 import Constants from 'expo-constants';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -34,7 +35,8 @@ export interface ProfileScreenProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
-  const profile = MOCK_PROFILE;
+  const { user } = useAuth();
+  const profile = user ?? MOCK_PROFILE;
 
   const [pushEnabled, setPushEnabled] = useState(profile.pushEnabled);
   const [logoutVisible, setLogoutVisible] = useState(false);
@@ -57,14 +59,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
     setPushSheetVisible(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsLoggingOut(true);
-    // TODO(api-wiring): clear SecureStore tokens, deactivate push token
-    setTimeout(() => {
+    try {
+      await onLogout();
+    } finally {
       setIsLoggingOut(false);
       setLogoutVisible(false);
-      onLogout();
-    }, 800);
+    }
   };
 
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
@@ -74,7 +76,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Brand label */}
         <View style={styles.brandRow}>
-          <Text style={styles.brandLabel}>NSUK TimeMap</Text>
+          <Text style={styles.brandLabel}></Text>
         </View>
 
         {/* Profile header card */}

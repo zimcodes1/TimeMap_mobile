@@ -5,10 +5,12 @@ import { useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { LoginScreen } from '@/screens/auth/LoginScreen';
 import { loginSchema, LoginSchema } from '@/lib/validation/auth';
+import { useAuth } from '@/context/AuthContext';
 
 export default function LoginRoute() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   const { control, handleSubmit } = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
@@ -21,21 +23,14 @@ export default function LoginRoute() {
   const onSubmit = handleSubmit(async (data) => {
     setIsLoading(true);
     try {
-      // Simulate/Execute login API request
-      console.log('Logging in with:', data);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      Toast.show({
-        type: 'success',
-        text1: 'Login Successful',
-        text2: 'Please update your password to continue.',
+      await login({
+        identifier: data.id,
+        password: data.password,
       });
-
-      // Navigate to password reset
-      router.replace('/(auth)/reset-password' as any);
+      // Navigation is handled automatically by NavigationGate in _layout.tsx based on requiresPasswordReset status
     } catch (error: any) {
       const errorMsg =
-        error?.message || 'Invalid credentials. Please check your Staff ID and password.';
+        error?.message || 'Invalid credentials. Please check your Staff ID/Matric number and password.';
       Toast.show({
         type: 'error',
         text1: 'Login Failed',
@@ -55,3 +50,4 @@ export default function LoginRoute() {
     />
   );
 }
+
