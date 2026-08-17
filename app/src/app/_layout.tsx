@@ -24,8 +24,18 @@ SplashScreen.preventAutoHideAsync().catch(() => {
   /* ignore error if already prevented */
 });
 
+function isMobileRoleAllowed(user: any): boolean {
+  if (!user) return false;
+  return (
+    user.role === 'student' ||
+    user.role === 'class_rep' ||
+    user.role === 'lecturer' ||
+    Boolean(user.isClassRep)
+  );
+}
+
 function NavigationGate() {
-  const { isAuthenticated, requiresPasswordReset, isLoading } = useAuth();
+  const { isAuthenticated, user, requiresPasswordReset, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -34,22 +44,28 @@ function NavigationGate() {
 
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
+    const currentSubRoute = segments[1];
 
     if (isAuthenticated) {
-      if (requiresPasswordReset) {
+      if (!isMobileRoleAllowed(user)) {
+        // Authenticated user with non-mobile role (e.g. admin) -> redirect to unauthorized-role screen
+        if (currentSubRoute !== 'unauthorized-role') {
+          router.replace('/(auth)/unauthorized-role');
+        }
+      } else if (requiresPasswordReset) {
         // Force redirect to reset password screen
-        if (segments[1] !== 'reset-password') {
+        if (currentSubRoute !== 'reset-password') {
           router.replace('/(auth)/reset-password');
         }
       } else if (inAuthGroup || !segments[0]) {
         // Authenticated user with valid reset status sent straight to home page
         router.replace('/(tabs)');
       }
-    } else if (!isAuthenticated && inTabsGroup) {
+    } else if (!isAuthenticated && (inTabsGroup || currentSubRoute === 'unauthorized-role')) {
       // Unauthenticated user trying to access tabs -> send to login
       router.replace('/(auth)/login');
     }
-  }, [isAuthenticated, requiresPasswordReset, isLoading, segments, router]);
+  }, [isAuthenticated, user, requiresPasswordReset, isLoading, segments, router]);
 
   return (
     <Stack

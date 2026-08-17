@@ -226,7 +226,7 @@ export const AnalyticsScreen: React.FC = () => {
                             <Text style={styles.courseCode}>{item.courseCode}</Text>
                             <Text style={styles.courseTitle}>{item.courseTitle}</Text>
                           </View>
-                          <Badge variant={rate >= 80 ? 'primary' : rate >= 50 ? 'warning' : 'danger'}>
+                          <Badge style={{ position: "absolute", right: 0 }} variant={rate >= 80 ? 'primary' : rate >= 50 ? 'warning' : 'danger'}>
                             {rate}% Hold Rate
                           </Badge>
                         </View>
@@ -446,6 +446,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     fontWeight: '500',
+    marginTop: 2
   },
   progressBarBg: {
     height: 8,

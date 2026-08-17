@@ -115,7 +115,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
           <View style={styles.headerRight}>
             {isOffline ? (
               <View style={styles.offlinePill}>
-                <WifiOff size={12} color={colors.warning} />
+                <WifiOff size={12} color={'#fff'} />
                 <Text style={styles.offlinePillText}>Offline</Text>
               </View>
             ) : null}
@@ -227,18 +227,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(245,158,11,0.12)',
+    backgroundColor: 'rgba(245,158,11,0.6)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(245,158,11,0.25)',
     marginTop: 4,
+    position: "absolute",
+    zIndex: 10,
+    right: 0,
   },
   offlinePillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: colors.warning,
+    color: "#fff",
   },
   notifBtn: {
     width: 40,
