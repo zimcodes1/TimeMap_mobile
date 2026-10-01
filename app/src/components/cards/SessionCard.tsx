@@ -110,7 +110,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
           </View>
         ) : session.reportId ? (
           <View style={[styles.windowBanner, styles.reportedBanner]}>
-            <Text style={styles.reportedText}>✓ Report submitted</Text>
+            <Text style={styles.reportedText}>✓ Reported</Text>
           </View>
         ) : null}
       </View>

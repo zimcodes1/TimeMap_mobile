@@ -9,6 +9,34 @@ export interface GetSessionsParams {
   courseId?: string;
 }
 
+export function isSessionReportWindowOpen(session: {
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  reportId?: string;
+  reportWindowOpen?: boolean;
+}): boolean {
+  if (session.reportId) return false;
+  if (!session.date || !session.startTime || !session.endTime) {
+    return Boolean(session.reportWindowOpen);
+  }
+  try {
+    const now = new Date();
+    const [startH, startM] = session.startTime.split(':').map(Number);
+    const [endH, endM] = session.endTime.split(':').map(Number);
+    const [year, month, day] = session.date.split('-').map(Number);
+    if (!year || !month || !day || isNaN(startH) || isNaN(endH)) {
+      return Boolean(session.reportWindowOpen);
+    }
+    const startDt = new Date(year, month - 1, day, startH, startM, 0);
+    const endDt = new Date(year, month - 1, day, endH, endM, 0);
+    const expiryDt = new Date(endDt.getTime() + 30 * 60 * 1000);
+    return now >= startDt && now <= expiryDt;
+  } catch {
+    return Boolean(session.reportWindowOpen);
+  }
+}
+
 /**
  * Mapper function to transform raw backend LectureSession response into mobile Session object
  */
@@ -45,25 +73,13 @@ export function mapBackendToSession(raw: any): Session {
   }
 
   // Calculate reporting window: open during lecture and up to 30 minutes after lecture ends
-  let isWindowOpen = false;
-  if (!raw.report_id && dateStr && startTimeStr && endTimeStr) {
-    try {
-      const now = new Date();
-      const [startH, startM] = startTimeStr.split(':').map(Number);
-      const [endH, endM] = endTimeStr.split(':').map(Number);
-      const [year, month, day] = dateStr.split('-').map(Number);
-      if (year && month && day && !isNaN(startH) && !isNaN(endH)) {
-        const startDt = new Date(year, month - 1, day, startH, startM, 0);
-        const endDt = new Date(year, month - 1, day, endH, endM, 0);
-        const expiryDt = new Date(endDt.getTime() + 30 * 60 * 1000);
-        isWindowOpen = now >= startDt && now <= expiryDt;
-      }
-    } catch {
-      isWindowOpen = Boolean(raw.report_window_open);
-    }
-  } else if (raw.report_window_open !== undefined) {
-    isWindowOpen = Boolean(raw.report_window_open);
-  }
+  const isWindowOpen = isSessionReportWindowOpen({
+    date: dateStr,
+    startTime: startTimeStr,
+    endTime: endTimeStr,
+    reportId: raw.report_id ? String(raw.report_id) : undefined,
+    reportWindowOpen: raw.report_window_open,
+  });
 
   return {
     id: String(raw.id),

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
+import { useToReportCount } from '@/hooks/useReports';
 
 // ─── Custom tab badge (notification count) ────────────────────────────────────
 
@@ -44,6 +45,8 @@ const TabIcon: React.FC<TabIconProps> = ({ Icon, focused, badge }) => (
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 export default function TabsLayout() {
+  const toReportCount = useToReportCount();
+
   return (
     <Tabs
       screenOptions={{
@@ -78,7 +81,11 @@ export default function TabsLayout() {
         options={{
           title: 'Reports',
           tabBarIcon: ({ focused }) => (
-            <TabIcon Icon={FileText} focused={focused} />
+            <TabIcon
+              Icon={FileText}
+              focused={focused}
+              badge={toReportCount > 0 ? toReportCount : undefined}
+            />
           ),
         }}
       />

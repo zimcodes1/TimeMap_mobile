@@ -21,7 +21,9 @@ import { Report, Session } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useReports, useSubmitReport, useRespondReport } from '@/hooks/useReports';
 import { useTodaySessions } from '@/hooks/useSchedules';
+import { isSessionReportWindowOpen } from '@/api/schedulesAPI';
 import { WifiOff } from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
 
 // ─── Segmented tabs ────────────────────────────────────────────────────────────
 
@@ -88,6 +90,18 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
     submitReportMutation.mutate(payload, {
       onSuccess: () => {
         setSubmitReportSession(null);
+        Toast.show({
+          type: 'success',
+          text1: 'Report Submitted',
+          text2: payload.held ? 'Session recorded as held.' : 'Session recorded as not held.',
+        });
+      },
+      onError: (err: any) => {
+        Toast.show({
+          type: 'error',
+          text1: 'Submission Failed',
+          text2: err?.message || 'Could not submit report. Please try again.',
+        });
       },
     });
   };
@@ -106,7 +120,7 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
   );
 
   const toReportSessions = useMemo(
-    () => allSessions.filter((s) => s.reportWindowOpen && !s.reportId),
+    () => allSessions.filter((s) => isSessionReportWindowOpen(s) && !s.reportId),
     [allSessions]
   );
 
@@ -323,6 +337,7 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
         onClose={() => setSubmitReportSession(null)}
         session={submitReportSession}
         onSubmit={handleSubmitReport}
+        isSubmitting={submitReportMutation.isPending}
       />
 
       <ReportDetailBottomSheet

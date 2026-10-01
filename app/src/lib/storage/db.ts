@@ -239,6 +239,43 @@ export const localDB = {
   },
 
   /**
+   * Mark a session as reported in SQLite cache
+   */
+  async markSessionAsReported(sessionId: string, reportId: string, held: boolean): Promise<void> {
+    try {
+      const cached = await this.getSessions();
+      if (cached && Array.isArray(cached)) {
+        const updated = cached.map((s) => {
+          if (String(s.id) === String(sessionId)) {
+            return {
+              ...s,
+              reportId: String(reportId),
+              reportWindowOpen: false,
+              status: (held ? 'held' : 'not_held') as SessionStatus,
+            };
+          }
+          return s;
+        });
+        await this.setCache('scoped_sessions', updated);
+      }
+
+      // Update single session detail cache if present
+      const direct = await this.getCache<Session>(`session_detail_${sessionId}`);
+      if (direct) {
+        const updatedDirect: Session = {
+          ...direct,
+          reportId: String(reportId),
+          reportWindowOpen: false,
+          status: (held ? 'held' : 'not_held') as SessionStatus,
+        };
+        await this.setCache(`session_detail_${sessionId}`, updatedDirect);
+      }
+    } catch (error) {
+      console.error('[SQLite] Error marking session as reported:', error);
+    }
+  },
+
+  /**
    * Get single session by ID
    */
   async getSessionById(sessionId: string): Promise<Session | null> {
