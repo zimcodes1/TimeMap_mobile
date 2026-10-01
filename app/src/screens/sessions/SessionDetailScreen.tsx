@@ -31,6 +31,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useSessionDetail } from '@/hooks/useSchedules';
 import { useReports, useSubmitReport, useRespondReport } from '@/hooks/useReports';
 import { WifiOff } from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -73,7 +74,37 @@ const ReportWindowBanner: React.FC<{
     );
   }
 
-  if (session.reportWindowOpen) {
+  // Calculate dynamic window state (open during lecture and up to 30 mins after)
+  const now = new Date();
+  let isUpcoming = false;
+  let isExpired = false;
+  let isOpen = session.reportWindowOpen;
+
+  try {
+    const [startH, startM] = (session.startTime || '09:00').split(':').map(Number);
+    const [endH, endM] = (session.endTime || '11:00').split(':').map(Number);
+    const [year, month, day] = (session.date || '').split('-').map(Number);
+
+    if (year && month && day) {
+      const startDt = new Date(year, month - 1, day, startH, startM, 0);
+      const endDt = new Date(year, month - 1, day, endH, endM, 0);
+      const expiryDt = new Date(endDt.getTime() + 30 * 60 * 1000);
+
+      if (now < startDt) {
+        isUpcoming = true;
+        isOpen = false;
+      } else if (now > expiryDt) {
+        isExpired = true;
+        isOpen = false;
+      } else {
+        isOpen = true;
+      }
+    }
+  } catch {
+    // Keep server-provided fallback
+  }
+
+  if (isOpen) {
     return (
       <Card variant="outlined" style={[styles.banner, styles.bannerWarning]}>
         <View style={styles.bannerContent}>
@@ -89,11 +120,22 @@ const ReportWindowBanner: React.FC<{
     );
   }
 
+  if (isUpcoming) {
+    return (
+      <Card variant="outlined" style={[styles.banner, styles.bannerMutedBg]}>
+        <View style={styles.bannerRow}>
+          <Clock size={16} color={colors.textSubtle} />
+          <Text style={styles.bannerMuted}>Reporting window opens when lecture starts ({session.startTime}).</Text>
+        </View>
+      </Card>
+    );
+  }
+
   return (
     <Card variant="outlined" style={[styles.banner, styles.bannerMutedBg]}>
       <View style={styles.bannerRow}>
         <AlertCircle size={16} color={colors.textSubtle} />
-        <Text style={styles.bannerMuted}>Reporting window has expired.</Text>
+        <Text style={styles.bannerMuted}>Reporting window has expired (closes 30 mins after lecture).</Text>
       </View>
     </Card>
   );
@@ -164,6 +206,18 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
     submitReportMutation.mutate(payload, {
       onSuccess: () => {
         setSubmitVisible(false);
+        Toast.show({
+          type: 'success',
+          text1: 'Report Submitted',
+          text2: payload.held ? 'Session recorded as held.' : 'Session recorded as not held.',
+        });
+      },
+      onError: (err: any) => {
+        Toast.show({
+          type: 'error',
+          text1: 'Submission Failed',
+          text2: err?.message || 'Could not submit report. Please try again.',
+        });
       },
     });
   };
@@ -233,14 +287,14 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
                 <User size={14} color={colors.textSubtle} />
                 <Text style={styles.lecturerHeaderText}>Lecturer(s)</Text>
               </View>
-              {session.lecturers.map((l) => (
-                <View key={l.id} style={styles.lecturerRow}>
+              {session.lecturers.map((l, index) => (
+                <View key={l.id ? `${l.id}-${index}` : `lec-${index}`} style={styles.lecturerRow}>
                   <View style={styles.lecturerAvatar}>
-                    <Text style={styles.lecturerInitial}>{l.name[0]}</Text>
+                    <Text style={styles.lecturerInitial}>{(l.name || 'L')[0]}</Text>
                   </View>
                   <View>
                     <Text style={styles.lecturerName}>{l.name}</Text>
-                    <Text style={styles.lecturerStaffId}>{l.staffId}</Text>
+                    {l.staffId ? <Text style={styles.lecturerStaffId}>{l.staffId}</Text> : null}
                   </View>
                 </View>
               ))}
@@ -281,6 +335,7 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
         onClose={() => setSubmitVisible(false)}
         session={session}
         onSubmit={handleSubmitReport}
+        isSubmitting={submitReportMutation.isPending}
       />
 
       <ReportDetailBottomSheet

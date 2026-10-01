@@ -17,6 +17,54 @@ export function mapBackendToSession(raw: any): Session {
   const startTimeStr = raw.session_start_time ? raw.session_start_time.substring(0, 5) : '09:00';
   const endTimeStr = raw.session_end_time ? raw.session_end_time.substring(0, 5) : '11:00';
 
+  // Resolve lecturers robustly whether backend returns objects, strings, or single lecturer_name
+  let lecturers: { id: string; name: string; staffId: string }[] = [];
+  if (Array.isArray(raw.lecturers) && raw.lecturers.length > 0) {
+    lecturers = raw.lecturers.map((l: any, index: number) => {
+      if (typeof l === 'string') {
+        return {
+          id: `${raw.id || 'sess'}_lec_${index}`,
+          name: l,
+          staffId: '',
+        };
+      }
+      return {
+        id: String(l.id || `${raw.id || 'sess'}_lec_${index}`),
+        name: l.name || l.full_name || 'Lecturer',
+        staffId: l.staff_id || l.staffId || '',
+      };
+    });
+  } else if (raw.lecturer_name) {
+    lecturers = [
+      {
+        id: `${raw.id || 'sess'}_lec_0`,
+        name: raw.lecturer_name,
+        staffId: '',
+      },
+    ];
+  }
+
+  // Calculate reporting window: open during lecture and up to 30 minutes after lecture ends
+  let isWindowOpen = false;
+  if (!raw.report_id && dateStr && startTimeStr && endTimeStr) {
+    try {
+      const now = new Date();
+      const [startH, startM] = startTimeStr.split(':').map(Number);
+      const [endH, endM] = endTimeStr.split(':').map(Number);
+      const [year, month, day] = dateStr.split('-').map(Number);
+      if (year && month && day && !isNaN(startH) && !isNaN(endH)) {
+        const startDt = new Date(year, month - 1, day, startH, startM, 0);
+        const endDt = new Date(year, month - 1, day, endH, endM, 0);
+        const expiryDt = new Date(endDt.getTime() + 30 * 60 * 1000);
+        isWindowOpen = now >= startDt && now <= expiryDt;
+      }
+    } catch {
+      isWindowOpen = Boolean(raw.report_window_open);
+    }
+  } else if (raw.report_window_open !== undefined) {
+    isWindowOpen = Boolean(raw.report_window_open);
+  }
+
   return {
     id: String(raw.id),
     course: {
@@ -30,18 +78,12 @@ export function mapBackendToSession(raw: any): Session {
       name: raw.venue_name || 'TBA',
       building: raw.venue_building || undefined,
     },
-    lecturers: Array.isArray(raw.lecturers)
-      ? raw.lecturers.map((l: any) => ({
-          id: String(l.id),
-          name: l.name || l.full_name || 'Lecturer',
-          staffId: l.staff_id || l.staffId || '',
-        }))
-      : [],
+    lecturers,
     date: dateStr,
     startTime: startTimeStr,
     endTime: endTimeStr,
     status: (raw.status as SessionStatus) || 'scheduled',
-    reportWindowOpen: Boolean(raw.report_window_open),
+    reportWindowOpen: isWindowOpen,
     reportWindowExpiresAt: raw.report_window_expires_at,
     reportId: raw.report_id ? String(raw.report_id) : undefined,
   };

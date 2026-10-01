@@ -2,11 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsAPI } from '@/api/notificationsAPI';
 import { localDB } from '@/lib/storage/db';
 import { Notification } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
 
 const NOTIFICATIONS_CACHE_KEY = 'notifications_inbox_cache';
 
 export function useNotificationsInbox() {
+  const { isAuthenticated } = useAuth();
   const [isOffline, setIsOffline] = useState(false);
 
   const query = useQuery<Notification[]>({
@@ -27,8 +29,9 @@ export function useNotificationsInbox() {
         throw err;
       }
     },
+    enabled: Boolean(isAuthenticated),
     staleTime: 1000 * 30, // 30 seconds
-    refetchInterval: 1000 * 30, // Refetch every 30s in background
+    refetchInterval: isAuthenticated ? 1000 * 30 : false, // Poll only when authenticated
   });
 
   return {
@@ -42,13 +45,16 @@ export function useNotificationsInbox() {
 }
 
 export function useUnreadNotificationCount() {
+  const { isAuthenticated } = useAuth();
+
   const query = useQuery<number>({
     queryKey: ['notifications', 'unreadCount'],
     queryFn: async () => {
       return await notificationsAPI.getUnreadCount();
     },
+    enabled: Boolean(isAuthenticated),
     staleTime: 1000 * 15, // 15 seconds
-    refetchInterval: 1000 * 15, // Poll unread count every 15 seconds for live badge updates
+    refetchInterval: isAuthenticated ? 1000 * 15 : false, // Poll unread count only when authenticated
   });
 
   return query.data ?? 0;

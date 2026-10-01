@@ -51,7 +51,10 @@ export function useSubmitReport() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['scoped_sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['session_detail'] });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['scoped_analytics'] });
     },
   });
 }
@@ -66,7 +69,10 @@ export function useRespondReport() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['scoped_sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['session_detail'] });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['scoped_analytics'] });
     },
   });
 }

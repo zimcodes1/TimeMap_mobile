@@ -20,6 +20,9 @@ export interface BackendProfile {
   staff_id?: string;
   full_name: string;
   department: string | number;
+  program?: string;
+  program_name?: string;
+  program_code?: string;
   level?: number | string;
   is_class_rep?: boolean;
   email: string;
@@ -58,6 +61,7 @@ export function mapBackendToUserProfile(
 ): UserProfile {
   const isClassRep = profile.is_class_rep ?? (user.role === 'class_rep');
   const levelStr = profile.level ? `${profile.level}L` : undefined;
+  const programStr = profile.program_name ?? (typeof profile.program === 'string' ? profile.program : undefined);
 
   return {
     id: String(user.id),
@@ -68,6 +72,7 @@ export function mapBackendToUserProfile(
     role: isClassRep ? 'class_rep' : user.role,
     isClassRep: Boolean(isClassRep),
     department: String(profile.department),
+    program: programStr,
     level: levelStr,
     requiresPasswordReset: requiresPasswordResetOverride ?? user.requires_password_reset,
     pushEnabled: true,

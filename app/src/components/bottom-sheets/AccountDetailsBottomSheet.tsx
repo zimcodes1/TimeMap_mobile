@@ -49,6 +49,7 @@ export const AccountDetailsBottomSheet: React.FC<AccountDetailsBottomSheetProps>
           {profile.matricNumber ? <DetailRow label="Matric Number" value={profile.matricNumber} /> : null}
           {profile.staffId ? <DetailRow label="Staff ID" value={profile.staffId} /> : null}
           <DetailRow label="Role" value={roleLabel} />
+          {profile.program ? <DetailRow label="Program" value={profile.program} /> : null}
           <DetailRow label="Department" value={profile.department} />
           {profile.level ? <DetailRow label="Level" value={profile.level} /> : null}
         </View>

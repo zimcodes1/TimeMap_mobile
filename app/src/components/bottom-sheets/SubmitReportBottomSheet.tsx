@@ -30,15 +30,27 @@ export const SubmitReportBottomSheet: React.FC<SubmitReportBottomSheetProps> = (
   onSubmit,
   isSubmitting = false,
 }) => {
-  const [held, setHeld] = useState(true);
+  // Lecture held toggle is OFF by default
+  const [held, setHeld] = useState(false);
   const [reason, setReason] = useState('');
 
-  const handleSubmit = () => {
-    if (!session) return;
-    onSubmit({ lectureSession: session.id, held, reason });
-  };
+  // Reset form when sheet opens
+  React.useEffect(() => {
+    if (visible) {
+      setHeld(false);
+      setReason('');
+    }
+  }, [visible]);
 
-  const canSubmit = reason.trim().length >= 5 && !isSubmitting;
+  // If held is true, reason is not required and disabled.
+  // If held is false, reason is strictly required (min 5 chars).
+  const canSubmit = !isSubmitting && (held || reason.trim().length >= 5);
+
+  const handleSubmit = () => {
+    if (!session || !canSubmit) return;
+    const finalReason = held ? (reason.trim() || 'Lecture held as scheduled') : reason.trim();
+    onSubmit({ lectureSession: session.id, held, reason: finalReason });
+  };
 
   return (
     <BottomSheet
@@ -48,34 +60,53 @@ export const SubmitReportBottomSheet: React.FC<SubmitReportBottomSheetProps> = (
       subtitle={session ? `${session.course.code} · ${session.date}` : undefined}
     >
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Held toggle */}
+        {/* Held toggle - default off */}
         <View style={styles.section}>
           <Toggle
             value={held}
             onValueChange={setHeld}
             label="Lecture was held"
-            description="Turn off if the lecturer did not show up."
+            description={held ? "Session will be recorded as held." : "Turn on if the lecturer conducted the class."}
           />
         </View>
 
         {/* Divider */}
         <View style={styles.divider} />
 
-        {/* Reason */}
+        {/* Reason / Notes */}
         <View style={styles.section}>
-          <Text style={styles.fieldLabel}>Reason / Notes</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.fieldLabel}>Reason / Notes</Text>
+            {!held ? (
+              <Text style={styles.requiredBadge}>Required</Text>
+            ) : (
+              <Text style={styles.optionalBadge}>Disabled</Text>
+            )}
+          </View>
+
           <TextInput
-            style={styles.textarea}
-            value={reason}
+            style={[
+              styles.textarea,
+              held && styles.textareaDisabled,
+            ]}
+            value={held ? '' : reason}
             onChangeText={setReason}
-            placeholder="Describe what happened during this session…"
+            editable={!held && !isSubmitting}
+            placeholder={
+              held
+                ? 'Notes are disabled when lecture was held.'
+                : 'Describe why the lecture was not held (e.g. lecturer absent, venue clash)…'
+            }
             placeholderTextColor={colors.textSubtle}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
           />
-          {reason.trim().length > 0 && reason.trim().length < 5 ? (
+
+          {!held && reason.trim().length > 0 && reason.trim().length < 5 ? (
             <Text style={styles.errorText}>At least 5 characters required.</Text>
+          ) : !held && reason.trim().length === 0 ? (
+            <Text style={styles.hintText}>Please specify a reason why the lecture was not held.</Text>
           ) : null}
         </View>
 
@@ -90,7 +121,7 @@ export const SubmitReportBottomSheet: React.FC<SubmitReportBottomSheetProps> = (
           >
             Submit Report
           </Button>
-          <Button variant="ghost" size="md" onPress={onClose} style={styles.cancelBtn}>
+          <Button variant="ghost" size="md" onPress={onClose} style={styles.cancelBtn} disabled={isSubmitting}>
             Cancel
           </Button>
         </View>
@@ -110,11 +141,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginVertical: 12,
   },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   fieldLabel: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.textMuted,
-    marginBottom: 8,
+  },
+  requiredBadge: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.warning,
+  },
+  optionalBadge: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textSubtle,
   },
   textarea: {
     backgroundColor: colors.surfaceRaised,
@@ -127,11 +173,21 @@ const styles = StyleSheet.create({
     fontFamily: 'Source',
     minHeight: 100,
   },
+  textareaDisabled: {
+    backgroundColor: colors.surface,
+    borderColor: colors.borderSubtle,
+    opacity: 0.6,
+  },
   errorText: {
     fontSize: 12,
     color: colors.danger,
     marginTop: 4,
     fontWeight: '600',
+  },
+  hintText: {
+    fontSize: 12,
+    color: colors.textSubtle,
+    marginTop: 4,
   },
   actions: {
     marginTop: 20,

@@ -57,9 +57,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile }) => {
       {/* ID / matric */}
       <Text style={styles.identifier}>{identifier}</Text>
 
-      {/* Department / level */}
+      {/* Program / Department / level */}
       <View style={styles.deptRow}>
-        <Text style={styles.dept}>{profile.department}</Text>
+        <Text style={styles.dept}>{profile.program || profile.department}</Text>
         {profile.level ? (
           <>
             <View style={styles.dot} />

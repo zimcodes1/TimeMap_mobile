@@ -21,6 +21,7 @@ import { useAnalytics } from '@/hooks/useAnalytics';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSubmitReport } from '@/hooks/useReports';
 import { router } from 'expo-router';
+import Toast from 'react-native-toast-message';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,18 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
     submitReportMutation.mutate(payload, {
       onSuccess: () => {
         setSubmitReportVisible(false);
+        Toast.show({
+          type: 'success',
+          text1: 'Report Submitted',
+          text2: payload.held ? 'Session recorded as held.' : 'Session recorded as not held.',
+        });
+      },
+      onError: (err: any) => {
+        Toast.show({
+          type: 'error',
+          text1: 'Submission Failed',
+          text2: err?.message || 'Could not submit report. Please try again.',
+        });
       },
     });
   };
@@ -184,6 +197,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
         onClose={() => setSubmitReportVisible(false)}
         session={selectedSession}
         onSubmit={handleSubmitReport}
+        isSubmitting={submitReportMutation.isPending}
       />
     </SafeAreaView>
   );

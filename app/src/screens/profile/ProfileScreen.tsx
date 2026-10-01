@@ -127,7 +127,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
               <ProfileSettingsRow
                 icon={<BookOpen size={18} color={colors.primary} />}
                 label="Class Rep"
-                description="You are the class rep for your department"
+                description={profile.program ? `You are the class rep for ${profile.program}` : "You are the class rep for your department"}
                 isStatic
                 rightElement={
                   <View style={styles.repPill}>

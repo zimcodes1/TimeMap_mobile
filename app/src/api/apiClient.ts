@@ -81,7 +81,7 @@ export async function apiClient<T = any>(
   const { params, skipAuth, headers: customHeaders, ...restOptions } = options;
 
   let url = endpoint.startsWith('http') ? endpoint : `${API_CONFIG.BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
-
+  console.log(`API ENDPOINT: ${endpoint}`)
   if (params) {
     const searchParams = new URLSearchParams();
     Object.entries(params).forEach(([key, val]) => {

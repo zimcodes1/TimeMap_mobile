@@ -96,6 +96,7 @@ export interface UserProfile {
   role: UserRole;
   isClassRep: boolean;
   department: string;
+  program?: string;
   level?: string;             // e.g. "300L" — students only
   requiresPasswordReset: boolean;
   pushEnabled: boolean;
