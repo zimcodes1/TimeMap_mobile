@@ -14,6 +14,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions extends RequestInit {
+  data?: any;
   params?: Record<string, string | number | boolean | undefined>;
   skipAuth?: boolean;
 }
@@ -78,7 +79,10 @@ export async function apiClient<T = any>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { params, skipAuth, headers: customHeaders, ...restOptions } = options;
+  const { params, data, skipAuth, headers: customHeaders, ...restOptions } = options;
+  if (data && !restOptions.body) {
+    restOptions.body = JSON.stringify(data);
+  }
 
   let url = endpoint.startsWith('http') ? endpoint : `${API_CONFIG.BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
   console.log(`API ENDPOINT: ${endpoint}`)

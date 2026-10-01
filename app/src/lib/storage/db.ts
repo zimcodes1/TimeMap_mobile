@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { UserProfile, Session, AnalyticsData } from '@/types';
+import { UserProfile, Session, SessionStatus, AnalyticsData } from '@/types';
 
 const DB_NAME = 'timemap_local.db';
 
@@ -272,6 +272,58 @@ export const localDB = {
       }
     } catch (error) {
       console.error('[SQLite] Error marking session as reported:', error);
+    }
+  },
+
+  /**
+   * Update session in SQLite cache after shift or change
+   */
+  async updateSessionInCache(updatedSession: Session): Promise<void> {
+    try {
+      const cached = await this.getSessions();
+      if (cached && Array.isArray(cached)) {
+        const updated = cached.map((s) => {
+          if (String(s.id) === String(updatedSession.id)) {
+            return { ...s, ...updatedSession };
+          }
+          return s;
+        });
+        await this.setCache('scoped_sessions', updated);
+      }
+      await this.setCache(`session_detail_${updatedSession.id}`, updatedSession);
+    } catch (error) {
+      console.error('[SQLite] Error updating session in cache:', error);
+    }
+  },
+
+  /**
+   * Cancel a session in SQLite cache
+   */
+  async cancelSessionInCache(sessionId: string): Promise<void> {
+    try {
+      const cached = await this.getSessions();
+      if (cached && Array.isArray(cached)) {
+        const updated = cached.map((s) => {
+          if (String(s.id) === String(sessionId)) {
+            return {
+              ...s,
+              status: 'cancelled' as SessionStatus,
+            };
+          }
+          return s;
+        });
+        await this.setCache('scoped_sessions', updated);
+      }
+
+      const direct = await this.getCache<Session>(`session_detail_${sessionId}`);
+      if (direct) {
+        await this.setCache(`session_detail_${sessionId}`, {
+          ...direct,
+          status: 'cancelled' as SessionStatus,
+        });
+      }
+    } catch (error) {
+      console.error('[SQLite] Error cancelling session in cache:', error);
     }
   },
 

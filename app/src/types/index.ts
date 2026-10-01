@@ -42,6 +42,7 @@ export interface Session {
   reportWindowOpen: boolean;
   reportWindowExpiresAt?: string; // ISO datetime
   reportId?: string;              // if a report already exists for this session
+  timetableEntryId?: string;
 }
 
 //Reports

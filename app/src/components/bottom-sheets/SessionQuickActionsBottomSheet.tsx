@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
-import { Eye, FileText, Calendar } from 'lucide-react-native';
+import { Eye, FileText, Calendar, CalendarClock, XCircle } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { BottomSheet } from '@/components/ui/BottomSheet';
@@ -13,8 +13,11 @@ export interface SessionQuickActionsBottomSheetProps {
   onClose: () => void;
   session: Session | null;
   isClassRep: boolean;
+  isLecturer?: boolean;
   onViewDetails: () => void;
   onSubmitReport: () => void;
+  onShiftLecture?: () => void;
+  onCancelLecture?: () => void;
 }
 
 // ─── Action row component (internal) ─────────────────────────────────────────
@@ -56,11 +59,27 @@ export const SessionQuickActionsBottomSheet: React.FC<SessionQuickActionsBottomS
   onClose,
   session,
   isClassRep,
+  isLecturer = false,
   onViewDetails,
   onSubmitReport,
+  onShiftLecture,
+  onCancelLecture,
 }) => {
   const reportWindowOpen = session?.reportWindowOpen && !session?.reportId;
   const alreadyReported = !!session?.reportId;
+  const isCancelled = session?.status === 'cancelled';
+
+  const isPast = React.useMemo(() => {
+    if (!session?.date || !session?.endTime) return false;
+    try {
+      const [h, m] = session.endTime.split(':').map(Number);
+      const [y, mon, d] = session.date.split('-').map(Number);
+      const endDt = new Date(y, mon - 1, d, h, m);
+      return endDt < new Date();
+    } catch {
+      return false;
+    }
+  }, [session?.date, session?.endTime]);
 
   const handleViewDetails = () => {
     onClose();
@@ -70,6 +89,20 @@ export const SessionQuickActionsBottomSheet: React.FC<SessionQuickActionsBottomS
   const handleSubmitReport = () => {
     onClose();
     setTimeout(onSubmitReport, 180);
+  };
+
+  const handleShiftLecture = () => {
+    onClose();
+    if (onShiftLecture) {
+      setTimeout(onShiftLecture, 180);
+    }
+  };
+
+  const handleCancelLecture = () => {
+    onClose();
+    if (onCancelLecture) {
+      setTimeout(onCancelLecture, 180);
+    }
   };
 
   return (
@@ -95,6 +128,26 @@ export const SessionQuickActionsBottomSheet: React.FC<SessionQuickActionsBottomS
             label="Submit Report"
             description="Window is open — report this session now"
             onPress={handleSubmitReport}
+          />
+        ) : null}
+
+        {isLecturer && !isCancelled && !isPast && onShiftLecture ? (
+          <ActionRow
+            Icon={CalendarClock}
+            iconColor={colors.warning}
+            label="Shift Lecture Time / Venue"
+            description="Reschedule venue or time slots in real time"
+            onPress={handleShiftLecture}
+          />
+        ) : null}
+
+        {isLecturer && !isCancelled && !isPast && onCancelLecture ? (
+          <ActionRow
+            Icon={XCircle}
+            iconColor={colors.danger}
+            label="Cancel Lecture"
+            description="Cancel this lecture session and notify class"
+            onPress={handleCancelLecture}
           />
         ) : null}
 

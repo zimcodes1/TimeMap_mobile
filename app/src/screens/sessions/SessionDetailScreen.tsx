@@ -15,6 +15,9 @@ import {
   CheckCircle2,
   Timer,
   Lock,
+  CalendarClock,
+  XCircle,
+  WifiOff,
 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
@@ -26,11 +29,17 @@ import { EmptyStateView } from '@/components/common/EmptyStateView';
 import { SubmitReportBottomSheet } from '@/components/bottom-sheets/SubmitReportBottomSheet';
 import { ReportDetailBottomSheet } from '@/components/bottom-sheets/ReportDetailBottomSheet';
 import { LecturerResponseBottomSheet } from '@/components/bottom-sheets/LecturerResponseBottomSheet';
+import { ShiftLectureBottomSheet } from '@/components/bottom-sheets/ShiftLectureBottomSheet';
+import { CancelLectureBottomSheet } from '@/components/bottom-sheets/CancelLectureBottomSheet';
 import { Session, SessionStatus, Report } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useSessionDetail } from '@/hooks/useSchedules';
 import { useReports, useSubmitReport, useRespondReport } from '@/hooks/useReports';
-import { WifiOff } from 'lucide-react-native';
+import {
+  useShiftSession,
+  useCancelSession,
+  useSubmitDiscrepancy,
+} from '@/hooks/useShiftLecture';
 import Toast from 'react-native-toast-message';
 
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -173,6 +182,26 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
   const [lecturerResponseVisible, setLecturerResponseVisible] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
+  // Shifting and Cancellation state
+  const [shiftVisible, setShiftVisible] = useState(false);
+  const [cancelVisible, setCancelVisible] = useState(false);
+
+  const shiftSessionMutation = useShiftSession();
+  const cancelSessionMutation = useCancelSession();
+  const submitDiscrepancyMutation = useSubmitDiscrepancy();
+
+  const isPast = useMemo(() => {
+    if (!session?.date || !session?.endTime) return false;
+    try {
+      const [h, m] = session.endTime.split(':').map(Number);
+      const [y, mon, d] = session.date.split('-').map(Number);
+      const endDt = new Date(y, mon - 1, d, h, m);
+      return endDt < new Date();
+    } catch {
+      return false;
+    }
+  }, [session?.date, session?.endTime]);
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -230,6 +259,102 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
     });
   };
 
+  const handleSubmitShift = (params: {
+    isRecurring: boolean;
+    venueId: string;
+    venueName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    reason: string;
+  }) => {
+    if (params.isRecurring) {
+      submitDiscrepancyMutation.mutate(
+        {
+          timetable_entry: session.timetableEntryId,
+          request_type: 'shift_venue',
+          proposed_venue: params.venueId,
+          proposed_start_time: params.startTime + ':00',
+          proposed_end_time: params.endTime + ':00',
+          proposed_date: params.date,
+          reason: params.reason,
+        },
+        {
+          onSuccess: () => {
+            setShiftVisible(false);
+            Toast.show({
+              type: 'success',
+              text1: 'Discrepancy Request Submitted',
+              text2: 'Recurrent shift request routed to admin for approval.',
+            });
+          },
+          onError: (err: any) => {
+            Toast.show({
+              type: 'error',
+              text1: 'Request Failed',
+              text2: err?.message || 'Could not submit discrepancy request.',
+            });
+          },
+        }
+      );
+    } else {
+      shiftSessionMutation.mutate(
+        {
+          sessionId: session.id,
+          payload: {
+            venue: params.venueId,
+            session_date: params.date,
+            session_start_time: params.startTime + ':00',
+            session_end_time: params.endTime + ':00',
+          },
+        },
+        {
+          onSuccess: () => {
+            setShiftVisible(false);
+            Toast.show({
+              type: 'success',
+              text1: 'Lecture Shifted',
+              text2: `Successfully shifted to ${params.venueName} (${params.startTime} - ${params.endTime}).`,
+            });
+          },
+          onError: (err: any) => {
+            Toast.show({
+              type: 'error',
+              text1: 'Shift Failed',
+              text2: err?.message || 'Could not shift lecture. Check for conflicts.',
+            });
+          },
+        }
+      );
+    }
+  };
+
+  const handleConfirmCancel = (cancelReason: string) => {
+    cancelSessionMutation.mutate(
+      {
+        sessionId: session.id,
+        reason: cancelReason,
+      },
+      {
+        onSuccess: () => {
+          setCancelVisible(false);
+          Toast.show({
+            type: 'success',
+            text1: 'Lecture Cancelled',
+            text2: 'Session marked as cancelled and students notified.',
+          });
+        },
+        onError: (err: any) => {
+          Toast.show({
+            type: 'error',
+            text1: 'Cancellation Failed',
+            text2: err?.message || 'Could not cancel lecture.',
+          });
+        },
+      }
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -247,15 +372,38 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
           <Card variant="flat" style={styles.headerCard}>
             <View style={styles.courseRow}>
               <Text style={styles.courseCode}>{session.course.code}</Text>
-              <Badge variant={STATUS_VARIANT[session.status]}>
-                {STATUS_LABEL[session.status]}
-              </Badge>
+              <View style={styles.badgeRow}>
+                {isPast ? (
+                  <Badge variant="secondary">Past</Badge>
+                ) : null}
+                {session.status === 'cancelled' ? (
+                  <Badge variant="danger">Cancelled</Badge>
+                ) : session.reportId ? (
+                  <Badge variant="primary">Reported</Badge>
+                ) : !isPast ? (
+                  <Badge variant={STATUS_VARIANT[session.status]}>
+                    {STATUS_LABEL[session.status]}
+                  </Badge>
+                ) : null}
+              </View>
             </View>
             <Text style={styles.courseTitle}>{session.course.title}</Text>
             {session.course.department ? (
               <Text style={styles.dept}>{session.course.department}</Text>
             ) : null}
           </Card>
+
+          {/* Cancelled status banner */}
+          {session.status === 'cancelled' ? (
+            <Card variant="outlined" style={[styles.banner, styles.bannerDanger, { marginBottom: 14 }]}>
+              <View style={styles.bannerRow}>
+                <AlertCircle size={16} color={colors.danger} />
+                <Text style={[styles.bannerText, { color: colors.danger }]}>
+                  This lecture session has been cancelled.
+                </Text>
+              </View>
+            </Card>
+          ) : null}
 
           {/* Info grid */}
           <View style={styles.infoGrid}>
@@ -279,6 +427,37 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
               ) : null}
             </View>
           </View>
+
+          {/* Lecturer Actions Card */}
+          {isLecturer && session.status !== 'cancelled' && !isPast ? (
+            <Card variant="flat" style={styles.lecturerActionsCard}>
+              <View style={styles.lecturerActionsHeader}>
+                <CalendarClock size={16} color={colors.primary} />
+                <Text style={styles.lecturerActionsTitle}>Lecture Management</Text>
+              </View>
+              <Text style={styles.lecturerActionsSub}>
+                Reschedule this lecture in real-time or submit a recurrent change to administration.
+              </Text>
+              <View style={styles.lecturerActionButtons}>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onPress={() => setShiftVisible(true)}
+                  style={styles.actionBtnFlex}
+                >
+                  Shift Time / Venue
+                </Button>
+                <Button
+                  variant="danger"
+                  size="md"
+                  onPress={() => setCancelVisible(true)}
+                  style={styles.actionBtnFlex}
+                >
+                  Cancel Lecture
+                </Button>
+              </View>
+            </Card>
+          ) : null}
 
           {/* Lecturers */}
           {session.lecturers.length > 0 ? (
@@ -349,6 +528,22 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
         }}
       />
 
+      <ShiftLectureBottomSheet
+        visible={shiftVisible}
+        onClose={() => setShiftVisible(false)}
+        session={session}
+        onSubmitShift={handleSubmitShift}
+        isSubmitting={shiftSessionMutation.isPending || submitDiscrepancyMutation.isPending}
+      />
+
+      <CancelLectureBottomSheet
+        visible={cancelVisible}
+        onClose={() => setCancelVisible(false)}
+        session={session}
+        onConfirmCancel={handleConfirmCancel}
+        isCancelling={cancelSessionMutation.isPending}
+      />
+
       <LecturerResponseBottomSheet
         visible={lecturerResponseVisible}
         onClose={() => setLecturerResponseVisible(false)}
@@ -395,6 +590,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 6,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   courseCode: { fontSize: 20, fontWeight: '700', color: colors.textMain },
   courseTitle: { fontSize: 15, color: colors.textMuted, fontWeight: '600', marginBottom: 4 },
@@ -444,6 +644,42 @@ const styles = StyleSheet.create({
   threadTitle: {
     fontSize: 12, fontWeight: '700', color: colors.textSubtle,
     textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 10,
+  },
+  lecturerActionsCard: {
+    marginBottom: 14,
+    padding: 16,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  lecturerActionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  lecturerActionsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textMain,
+  },
+  lecturerActionsSub: {
+    fontSize: 12,
+    color: colors.textSubtle,
+    lineHeight: 16,
+    marginBottom: 12,
+  },
+  lecturerActionButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  actionBtnFlex: {
+    flex: 1,
+  },
+  bannerDanger: {
+    borderColor: 'rgba(239,68,68,0.3)',
+    backgroundColor: 'rgba(239,68,68,0.08)',
   },
   notFound: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   notFoundText: { fontSize: 16, color: colors.textMuted, fontWeight: '600' },

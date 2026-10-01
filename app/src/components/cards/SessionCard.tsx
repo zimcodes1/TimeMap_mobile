@@ -50,6 +50,19 @@ export const SessionCard: React.FC<SessionCardProps> = ({
   const { label, variant } = STATUS_CONFIG[session.status];
   const lecturerNames = session.lecturers.map((l) => l.name).join(', ');
 
+  const isPast = React.useMemo(() => {
+    try {
+      if (!session.date || !session.endTime) return false;
+      const [year, month, day] = session.date.split('-').map(Number);
+      const [endH, endM] = session.endTime.split(':').map(Number);
+      if (!year || !month || !day || isNaN(endH)) return false;
+      const endDt = new Date(year, month - 1, day, endH, endM || 0, 0);
+      return endDt.getTime() < Date.now();
+    } catch {
+      return false;
+    }
+  }, [session.date, session.endTime]);
+
   return (
     <Pressable
       onPress={onPress}
@@ -63,7 +76,16 @@ export const SessionCard: React.FC<SessionCardProps> = ({
         <View style={styles.topRow}>
           <View style={styles.courseInfo}>
             <Text style={styles.courseCode}>{session.course.code}</Text>
-            <Badge variant={variant} style={styles.badge}>{label}</Badge>
+            {isPast ? (
+              <Badge variant="secondary" style={styles.badge}>Past</Badge>
+            ) : null}
+            {session.status === 'cancelled' ? (
+              <Badge variant="danger" style={styles.badge}>Cancelled</Badge>
+            ) : session.reportId ? (
+              <Badge variant="primary" style={styles.badge}>Reported</Badge>
+            ) : !isPast ? (
+              <Badge variant={variant} style={styles.badge}>{label}</Badge>
+            ) : null}
           </View>
           {onMorePress ? (
             <Pressable onPress={onMorePress} hitSlop={12} style={styles.moreBtn}>

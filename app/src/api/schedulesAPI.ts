@@ -102,6 +102,7 @@ export function mapBackendToSession(raw: any): Session {
     reportWindowOpen: isWindowOpen,
     reportWindowExpiresAt: raw.report_window_expires_at,
     reportId: raw.report_id ? String(raw.report_id) : undefined,
+    timetableEntryId: raw.timetable_entry ? String(raw.timetable_entry) : (raw.timetable_entry_id ? String(raw.timetable_entry_id) : undefined),
   };
 }
 
@@ -145,6 +146,46 @@ export const schedulesAPI = {
       return mapBackendToSession(raw);
     } catch (error) {
       console.warn(`[schedulesAPI] Failed to fetch session ${id}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Shift a lecture session instance (venue, date, start_time, end_time)
+   */
+  async shiftSession(
+    sessionId: string,
+    payload: {
+      venue?: string | number;
+      session_date?: string;
+      session_start_time?: string;
+      session_end_time?: string;
+    }
+  ): Promise<Session> {
+    try {
+      const raw = await apiClient<any>(`/scheduling/sessions/${sessionId}/`, {
+        method: 'PATCH',
+        data: payload,
+      });
+      return mapBackendToSession(raw);
+    } catch (error) {
+      console.warn(`[schedulesAPI] Failed to shift session ${sessionId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Cancel a lecture session instance
+   */
+  async cancelSession(sessionId: string, reason?: string): Promise<Session> {
+    try {
+      const raw = await apiClient<any>(`/scheduling/sessions/${sessionId}/cancel/`, {
+        method: 'POST',
+        data: { reason: reason || 'Cancelled by lecturer' },
+      });
+      return mapBackendToSession(raw);
+    } catch (error) {
+      console.warn(`[schedulesAPI] Failed to cancel session ${sessionId}:`, error);
       throw error;
     }
   },

@@ -153,8 +153,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 20,
-    paddingBottom: 34,
-    maxHeight: SCREEN_HEIGHT * 0.85,
+    paddingBottom: 24,
+    maxHeight: SCREEN_HEIGHT * 0.88,
+    overflow: 'hidden',
   },
   handleContainer: {
     alignItems: 'center',
@@ -173,7 +174,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   titleContainer: {
     flex: 1,
@@ -200,6 +201,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   content: {
-    paddingTop: 8,
+    paddingTop: 4,
+    flexShrink: 1,
   },
 });
