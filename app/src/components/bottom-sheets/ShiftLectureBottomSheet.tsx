@@ -27,7 +27,65 @@ import { Session } from "@/types";
 import { useVenues, useVenueAvailability } from "@/hooks/useShiftLecture";
 import { VenueSlot } from "@/api/venuesAPI";
 
-// ─── Props ────────────────────────────────────────────────────────────────────
+// ─── Props & Helpers ──────────────────────────────────────────────────────────
+
+export interface WeekdayItem {
+	code: 'MO' | 'TU' | 'WE' | 'TH' | 'FR';
+	name: string;
+	label: string;
+	date: string;
+}
+
+export function computeWeekdaysForSession(
+	sessionDateStr?: string,
+	isRecurring: boolean = false,
+): WeekdayItem[] {
+	const ref = sessionDateStr
+		? new Date(sessionDateStr + 'T00:00:00')
+		: new Date();
+	const currentDay = ref.getDay(); // 0 is Sun, 1 is Mon, 5 is Fri
+	const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+	const monday = new Date(ref);
+	monday.setDate(ref.getDate() + distanceToMonday);
+
+	const today = new Date();
+	const yyyyT = today.getFullYear();
+	const mmT = String(today.getMonth() + 1).padStart(2, '0');
+	const ddT = String(today.getDate()).padStart(2, '0');
+	const todayStr = `${yyyyT}-${mmT}-${ddT}`;
+
+	const DAYS: Array<{ code: 'MO' | 'TU' | 'WE' | 'TH' | 'FR'; name: string }> = [
+		{ code: 'MO', name: 'Monday' },
+		{ code: 'TU', name: 'Tuesday' },
+		{ code: 'WE', name: 'Wednesday' },
+		{ code: 'TH', name: 'Thursday' },
+		{ code: 'FR', name: 'Friday' },
+	];
+
+	const allWeekdays = DAYS.map((d, index) => {
+		const dayDate = new Date(monday);
+		dayDate.setDate(monday.getDate() + index);
+		const yyyy = dayDate.getFullYear();
+		const mm = String(dayDate.getMonth() + 1).padStart(2, '0');
+		const dd = String(dayDate.getDate()).padStart(2, '0');
+		return {
+			code: d.code,
+			name: d.name,
+			label: isRecurring ? d.name : `${d.name} (This week)`,
+			date: `${yyyy}-${mm}-${dd}`,
+		};
+	});
+
+	if (isRecurring) {
+		return allWeekdays;
+	}
+
+	// Filter out past weekdays: only show today or future days
+	const futureOrToday = allWeekdays.filter((d) => d.date >= todayStr);
+	return futureOrToday.length > 0
+		? futureOrToday
+		: [allWeekdays[allWeekdays.length - 1]];
+}
 
 export interface ShiftLectureBottomSheetProps {
 	visible: boolean;
@@ -38,6 +96,7 @@ export interface ShiftLectureBottomSheetProps {
 		venueId: string;
 		venueName: string;
 		date: string;
+		weekday?: string;
 		startTime: string;
 		endTime: string;
 		reason: string;
@@ -53,8 +112,18 @@ export const ShiftLectureBottomSheet: React.FC<
 	// Mode: single instance vs recurrent pattern
 	const [isRecurring, setIsRecurring] = useState(false);
 
-	// Selected date (defaults to session date)
-	const [date, setDate] = useState("");
+	// Weekday options for the session's active week
+	const weekdays = React.useMemo(() => {
+		return computeWeekdaysForSession(session?.date, isRecurring);
+	}, [session?.date, isRecurring]);
+
+	// Selected weekday code (defaults to current session's weekday if valid/future)
+	const [selectedDayCode, setSelectedDayCode] = useState<
+		'MO' | 'TU' | 'WE' | 'TH' | 'FR'
+	>('MO');
+
+	const selectedWeekday =
+		weekdays.find((w) => w.code === selectedDayCode) || weekdays[0];
 
 	// Selected venue
 	const [selectedVenueId, setSelectedVenueId] = useState("");
@@ -106,21 +175,49 @@ export const ShiftLectureBottomSheet: React.FC<
 		refetch: refetchAvailability,
 	} = useVenueAvailability(
 		visible && selectedVenueId ? selectedVenueId : undefined,
-		visible && date ? date : undefined,
+		visible && selectedWeekday
+			? { date: selectedWeekday.date, weekday: selectedWeekday.name }
+			: undefined,
 		session?.id,
 	);
 
-	// Initialize/reset form state on open
+	// Initialize/reset form state on open with current session's weekday auto-selected (if future)
 	useEffect(() => {
 		if (visible && session) {
 			setIsRecurring(false);
-			setDate(session.date || new Date().toISOString().split("T")[0]);
+			const sessionDate = session.date
+				? new Date(session.date + "T00:00:00")
+				: new Date();
+			const dayNum = sessionDate.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+			const codeMap: Record<number, "MO" | "TU" | "WE" | "TH" | "FR"> = {
+				1: "MO",
+				2: "TU",
+				3: "WE",
+				4: "TH",
+				5: "FR",
+			};
+			const initialCode = codeMap[dayNum] || "MO";
+			const available = computeWeekdaysForSession(session.date, false);
+			const hasInitial = available.some((w) => w.code === initialCode);
+			setSelectedDayCode(
+				hasInitial ? initialCode : available[0]?.code || "MO",
+			);
 			setSelectedVenueId(String(session.venue.id || ""));
 			setSelectedVenueName(session.venue.name || "");
 			setSelectedSlot(null);
 			setReason("");
 		}
 	}, [visible, session]);
+
+	// Keep selectedDayCode aligned when weekdays change (e.g. toggling isRecurring)
+	useEffect(() => {
+		if (
+			weekdays.length > 0 &&
+			!weekdays.some((w) => w.code === selectedDayCode)
+		) {
+			setSelectedDayCode(weekdays[0].code);
+		}
+	}, [weekdays, selectedDayCode]);
 
 	// If initial venue is loaded, make sure venue name is in sync
 	useEffect(() => {
@@ -149,7 +246,8 @@ export const ShiftLectureBottomSheet: React.FC<
 			isRecurring,
 			venueId: selectedVenueId,
 			venueName: selectedVenueName,
-			date,
+			date: selectedWeekday.date,
+			weekday: selectedWeekday.name,
 			startTime: selectedSlot.start.substring(0, 5),
 			endTime: selectedSlot.end.substring(0, 5),
 			reason: reason.trim(),
@@ -228,22 +326,44 @@ export const ShiftLectureBottomSheet: React.FC<
 					</Text>
 				</View>
 
-				{/* Date Section */}
+				{/* Weekday Selector */}
 				<View style={styles.section}>
-					<Text style={styles.fieldLabel}>Lecture Date</Text>
-					<View style={styles.dateDisplay}>
-						<Calendar size={16} color={colors.textMuted} />
-						<TextInput
-							style={styles.dateInput}
-							value={date}
-							onChangeText={(text) => {
-								setDate(text);
-								setSelectedSlot(null);
-							}}
-							placeholder="YYYY-MM-DD"
-							placeholderTextColor={colors.textSubtle}
-						/>
-					</View>
+					<Text style={styles.fieldLabel}>Select Weekday</Text>
+					<ScrollView
+						horizontal
+						showsHorizontalScrollIndicator={false}
+						contentContainerStyle={styles.weekdayRow}
+					>
+						{weekdays.map((day) => {
+							const isSelected = day.code === selectedDayCode;
+							return (
+								<Pressable
+									key={day.code}
+									style={[
+										styles.weekdayPill,
+										isSelected && styles.weekdayPillActive,
+									]}
+									onPress={() => {
+										setSelectedDayCode(day.code);
+										setSelectedSlot(null);
+									}}
+								>
+									<Calendar
+										size={14}
+										color={isSelected ? colors.primary : colors.textSubtle}
+									/>
+									<Text
+										style={[
+											styles.weekdayPillText,
+											isSelected && styles.weekdayPillTextActive,
+										]}
+									>
+										{day.label}
+									</Text>
+								</Pressable>
+							);
+						})}
+					</ScrollView>
 				</View>
 
 				{/* Venue Selector */}
@@ -356,8 +476,8 @@ export const ShiftLectureBottomSheet: React.FC<
 						<View style={styles.emptySlots}>
 							<AlertCircle size={16} color={colors.textSubtle} />
 							<Text style={styles.emptySlotsText}>
-								No available free slots for this venue on {date}. Try another
-								venue or date.
+								No available standard slots for this venue on {selectedWeekday.name}. Try another
+								venue or weekday.
 							</Text>
 						</View>
 					) : (
@@ -399,7 +519,7 @@ export const ShiftLectureBottomSheet: React.FC<
 					)}
 
 					<Text style={styles.operatingHint}>
-						Standard operating hours: 8:00 AM – 6:00 PM
+						Standard 2-hour university slots (8:00 AM – 6:00 PM{selectedDayCode === 'FR' ? ' · Friday 12-2 PM Jummat prayer excluded' : ''})
 					</Text>
 				</View>
 
@@ -553,22 +673,33 @@ const styles = StyleSheet.create({
 		fontSize: 11,
 		color: colors.textSubtle,
 	},
-	dateDisplay: {
+	weekdayRow: {
+		gap: 8,
+		paddingVertical: 4,
+	},
+	weekdayPill: {
 		flexDirection: "row",
 		alignItems: "center",
-		gap: 10,
+		gap: 6,
 		backgroundColor: colors.surfaceRaised,
 		borderWidth: 1,
 		borderColor: colors.border,
 		borderRadius: 10,
-		paddingHorizontal: 12,
 		paddingVertical: 8,
+		paddingHorizontal: 12,
 	},
-	dateInput: {
-		flex: 1,
-		color: colors.textMain,
-		fontSize: 14,
-		padding: 0,
+	weekdayPillActive: {
+		borderColor: colors.primary,
+		backgroundColor: `${colors.primary}15`,
+	},
+	weekdayPillText: {
+		fontSize: 13,
+		color: colors.textMuted,
+		fontWeight: "500",
+	},
+	weekdayPillTextActive: {
+		color: colors.primary,
+		fontWeight: "600",
 	},
 	venueRow: {
 		gap: 8,

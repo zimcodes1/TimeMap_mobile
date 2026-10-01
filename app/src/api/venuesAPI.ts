@@ -72,17 +72,24 @@ export const venuesAPI = {
   },
 
   /**
-   * Fetch real-time available time slots for a specific venue and date.
+   * Fetch real-time available time slots for a specific venue and date/weekday.
    */
   async getVenueAvailability(
     venueId: string,
-    date: string,
-    excludeSessionId?: string
+    params: { date?: string; weekday?: string; excludeSessionId?: string } | string,
+    maybeExcludeSessionId?: string
   ): Promise<VenueAvailabilityResponse> {
     try {
-      const queryParams: Record<string, string> = { date };
-      if (excludeSessionId) {
-        queryParams['exclude_session'] = excludeSessionId;
+      const queryParams: Record<string, string> = {};
+      if (typeof params === 'string') {
+        queryParams['date'] = params;
+        if (maybeExcludeSessionId) {
+          queryParams['exclude_session'] = maybeExcludeSessionId;
+        }
+      } else if (params) {
+        if (params.date) queryParams['date'] = params.date;
+        if (params.weekday) queryParams['weekday'] = params.weekday;
+        if (params.excludeSessionId) queryParams['exclude_session'] = params.excludeSessionId;
       }
 
       try {

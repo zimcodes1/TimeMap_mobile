@@ -17,22 +17,25 @@ export function useVenues(courseId?: string) {
 }
 
 /**
- * Hook to fetch live venue availability (free time slots) for a given date.
+ * Hook to fetch live venue availability (free time slots) for a given date or weekday.
  */
 export function useVenueAvailability(
   venueId?: string,
-  date?: string,
+  dateOrOptions?: string | { date?: string; weekday?: string },
   excludeSessionId?: string
 ) {
+  const date = typeof dateOrOptions === 'string' ? dateOrOptions : dateOrOptions?.date;
+  const weekday = typeof dateOrOptions === 'object' ? dateOrOptions?.weekday : undefined;
+
   return useQuery<VenueAvailabilityResponse>({
-    queryKey: ['venue_availability', venueId, date, excludeSessionId],
+    queryKey: ['venue_availability', venueId, date, weekday, excludeSessionId],
     queryFn: () => {
-      if (!venueId || !date) {
-        throw new Error('venueId and date are required');
+      if (!venueId || (!date && !weekday)) {
+        throw new Error('venueId and either date or weekday are required');
       }
-      return venuesAPI.getVenueAvailability(venueId, date, excludeSessionId);
+      return venuesAPI.getVenueAvailability(venueId, { date, weekday, excludeSessionId });
     },
-    enabled: Boolean(venueId && date),
+    enabled: Boolean(venueId && (date || weekday)),
     staleTime: 30 * 1000, // 30 seconds fresh
     refetchOnWindowFocus: true,
   });

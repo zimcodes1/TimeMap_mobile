@@ -264,6 +264,7 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
     venueId: string;
     venueName: string;
     date: string;
+    weekday?: string;
     startTime: string;
     endTime: string;
     reason: string;
