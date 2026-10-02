@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Control } from 'react-hook-form';
-import { Mail } from 'lucide-react-native';
+import { Mail, ArrowLeft } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { Input } from '@/components/ui/Input';
@@ -22,6 +22,7 @@ export interface ForgotPasswordScreenProps {
   isLoading: boolean;
   control: Control<ForgotPasswordSchema>;
   onNavigateToLogin: () => void;
+  onNavigateBack?: () => void;
 }
 
 export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
@@ -29,18 +30,29 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
   isLoading,
   control,
   onNavigateToLogin,
+  onNavigateBack,
 }) => {
+  const handleBack = onNavigateBack || onNavigateToLogin;
+
   return (
     <KeyboardAvoidingView
       style={styles.keyboardContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={true}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
+          {/* Top Back Navigation */}
+          <Pressable style={styles.backButton} onPress={handleBack} hitSlop={12}>
+            <ArrowLeft size={20} color={colors.textMain} />
+            <Text style={styles.backText}>Back to login</Text>
+          </Pressable>
+
           {/* Top Brand Logo & App Name */}
           <View style={styles.brandRow}>
             <Image
@@ -114,14 +126,27 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 36,
+    paddingTop: 24,
+    paddingBottom: 140,
   },
   container: {
     width: '100%',
     maxWidth: 400,
     alignSelf: 'center',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textMain,
+    marginLeft: 8,
   },
   brandRow: {
     flexDirection: 'row',

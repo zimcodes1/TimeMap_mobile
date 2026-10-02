@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Control } from 'react-hook-form';
-import { IdCard, Lock, Eye, EyeOff } from 'lucide-react-native';
+import { Lock, Eye, EyeOff, GraduationCap, Briefcase, ArrowLeft } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { Input } from '@/components/ui/Input';
@@ -17,32 +17,52 @@ import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
 import { LoginSchema } from '@/lib/validation/auth';
 
+export type LoginRoleTab = 'staff' | 'student';
+
 export interface LoginScreenProps {
   onSubmit: () => void;
   isLoading: boolean;
   control: Control<LoginSchema>;
+  activeTab: LoginRoleTab;
+  onTabChange: (tab: LoginRoleTab) => void;
   onNavigateToForgotPassword: () => void;
+  onNavigateToRegister: () => void;
+  onNavigateBack?: () => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({
   onSubmit,
   isLoading,
   control,
+  activeTab,
+  onTabChange,
   onNavigateToForgotPassword,
+  onNavigateToRegister,
+  onNavigateBack,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <KeyboardAvoidingView
       style={styles.keyboardContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={true}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
+          {/* Top Back Navigation if handler provided */}
+          {onNavigateBack && (
+            <Pressable style={styles.backButton} onPress={onNavigateBack} hitSlop={12}>
+              <ArrowLeft size={20} color={colors.textMain} />
+              <Text style={styles.backText}>Back</Text>
+            </Pressable>
+          )}
+
           {/* Top Brand Logo & App Name */}
           <View style={styles.brandRow}>
             <Image
@@ -56,7 +76,52 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Welcome back</Text>
-            <Text style={styles.subtitle}>Sign in to your TimeMap account</Text>
+            <Text style={styles.subtitle}>
+              {activeTab === 'student'
+                ? 'Sign in to access your student timetable'
+                : 'Sign in to your staff management account'}
+            </Text>
+          </View>
+
+          {/* Tab Selector */}
+          <View style={styles.tabContainer}>
+            <Pressable
+              style={[styles.tabButton, activeTab === 'staff' && styles.activeTabButton]}
+              onPress={() => onTabChange('staff')}
+            >
+              <Briefcase
+                size={16}
+                color={activeTab === 'staff' ? colors.primaryForeground : colors.textMuted}
+                style={styles.tabIcon}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === 'staff' && styles.activeTabText,
+                ]}
+              >
+                Staff Login
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.tabButton, activeTab === 'student' && styles.activeTabButton]}
+              onPress={() => onTabChange('student')}
+            >
+              <GraduationCap
+                size={17}
+                color={activeTab === 'student' ? colors.primaryForeground : colors.textMuted}
+                style={styles.tabIcon}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === 'student' && styles.activeTabText,
+                ]}
+              >
+                Student Login
+              </Text>
+            </Pressable>
           </View>
 
           {/* Form Fields */}
@@ -66,14 +131,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               control={control}
               render={({ value, onChange, onBlur, error }) => (
                 <Input
-                  label="Identifier"
-                  placeholder="Staff ID or Matric Number"
+                  label={activeTab === 'student' ? 'Matric Number' : 'Staff ID'}
+                  placeholder={
+                    activeTab === 'student'
+                      ? 'e.g. NSU/NAS/CSC/20/001'
+                      : 'e.g. STF-001 or EMP-101'
+                  }
                   value={value}
                   onChangeText={onChange}
                   onBlur={onBlur}
                   error={error}
-                  leftIcon={<IdCard size={18} color={colors.textSubtle} />}
-                  autoCapitalize="none"
+                  leftIcon={
+                    activeTab === 'student' ? (
+                      <GraduationCap size={18} color={colors.textSubtle} />
+                    ) : (
+                      <Briefcase size={18} color={colors.textSubtle} />
+                    )
+                  }
+                  autoCapitalize={activeTab === 'student' ? 'characters' : 'none'}
                 />
               )}
             />
@@ -130,10 +205,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              Don't have an account?{' '}
-              <Text style={styles.contactText}>Contact your administrator</Text>
-            </Text>
+            {activeTab === 'student' ? (
+              <View style={styles.footerRow}>
+                <Text style={styles.footerText}>Don't have an account? </Text>
+                <Pressable onPress={onNavigateToRegister} hitSlop={8}>
+                  <Text style={styles.contactText}>Create account</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Text style={styles.footerText}>
+                Don't have an account?{' '}
+                <Text style={styles.contactText}>Contact your administrator</Text>
+              </Text>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -148,14 +232,27 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 36,
+    paddingTop: 24,
+    paddingBottom: 140,
   },
   container: {
     width: '100%',
     maxWidth: 400,
     alignSelf: 'center',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textMain,
+    marginLeft: 8,
   },
   brandRow: {
     flexDirection: 'row',
@@ -173,7 +270,7 @@ const styles = StyleSheet.create({
     color: colors.textMain,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   title: {
     fontSize: 26,
@@ -184,6 +281,38 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     color: colors.textMuted,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  activeTabButton: {
+    backgroundColor: colors.primary,
+  },
+  tabIcon: {
+    marginRight: 6,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  activeTabText: {
+    color: colors.primaryForeground,
+    fontWeight: '700',
   },
   form: {
     marginBottom: 24,
@@ -204,6 +333,11 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     marginTop: 16,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   footerText: {
     fontSize: 13,

@@ -10,10 +10,13 @@ import { useState, useMemo } from 'react';
 const REPORTS_CACHE_KEY = 'reports_list_cache';
 
 export function useReports() {
+  const { user } = useAuth();
+  const isClassRep = Boolean(user?.isClassRep || user?.role === 'class_rep' || user?.role === 'lecturer');
   const [isOffline, setIsOffline] = useState(false);
 
   const query = useQuery<Report[]>({
     queryKey: ['reports'],
+    enabled: isClassRep,
     queryFn: async () => {
       try {
         const liveReports = await reportingAPI.getReports();
@@ -46,13 +49,33 @@ export function useReports() {
 
 export function useToReportCount(): number {
   const { user } = useAuth();
-  const isClassRep = Boolean(user?.isClassRep);
+  const isClassRep = Boolean(user?.isClassRep || user?.role === 'class_rep');
   const { allSessions } = useAllSchedules();
 
   return useMemo(() => {
     if (!isClassRep || !allSessions || allSessions.length === 0) return 0;
     return allSessions.filter((s) => isSessionReportWindowOpen(s) && !s.reportId).length;
   }, [isClassRep, allSessions]);
+}
+
+export function useReportsBadgeCount(): number {
+  const { user } = useAuth();
+  const isClassRep = Boolean(user?.isClassRep || user?.role === 'class_rep');
+  const isLecturer = user?.role === 'lecturer';
+  const { allSessions } = useAllSchedules();
+  const { reports } = useReports();
+
+  return useMemo(() => {
+    if (isClassRep) {
+      if (!allSessions || allSessions.length === 0) return 0;
+      return allSessions.filter((s) => isSessionReportWindowOpen(s) && !s.reportId).length;
+    }
+    if (isLecturer) {
+      if (!reports || reports.length === 0) return 0;
+      return reports.filter((r) => r.status === 'pending').length;
+    }
+    return 0;
+  }, [isClassRep, isLecturer, allSessions, reports]);
 }
 
 export function useSubmitReport() {

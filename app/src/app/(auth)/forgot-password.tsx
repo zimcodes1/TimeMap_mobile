@@ -47,6 +47,7 @@ export default function ForgotPasswordRoute() {
       isLoading={isLoading}
       onSubmit={onSubmit}
       onNavigateToLogin={() => router.replace('/(auth)/login')}
+      onNavigateBack={() => router.back()}
     />
   );
 }

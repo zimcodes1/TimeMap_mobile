@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { UserProfile } from '@/types';
 import { secureStore, AuthTokens } from '@/lib/storage/secureStore';
 import { localDB } from '@/lib/storage/db';
-import { authAPI, mapBackendToUserProfile, LoginPayload, PasswordResetPayload } from '@/api/authAPI';
+import { authAPI, mapBackendToUserProfile, LoginPayload, PasswordResetPayload, StudentSignupPayload } from '@/api/authAPI';
 import Toast from 'react-native-toast-message';
 
 export interface AuthContextType {
@@ -11,7 +11,9 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   requiresPasswordReset: boolean;
+  hasEverLoggedIn: boolean;
   login: (credentials: LoginPayload) => Promise<void>;
+  signup: (payload: StudentSignupPayload) => Promise<void>;
   resetPassword: (newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -23,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(null);
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [hasEverLoggedIn, setHasEverLoggedIn] = useState<boolean>(false);
 
   const isAuthenticated = Boolean(tokens?.access && user);
   const requiresPasswordReset = Boolean(user?.requiresPasswordReset);
@@ -33,9 +36,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hydrateAuth = useCallback(async () => {
     try {
       setIsLoading(true);
-      const access = await secureStore.getAccessToken();
-      const refresh = await secureStore.getRefreshToken();
-      const cachedProfile = await localDB.getCachedUserProfile();
+      const [access, refresh, cachedProfile, hasLoggedIn] = await Promise.all([
+        secureStore.getAccessToken(),
+        secureStore.getRefreshToken(),
+        localDB.getCachedUserProfile(),
+        secureStore.getHasLoggedIn(),
+      ]);
+
+      setHasEverLoggedIn(hasLoggedIn);
 
       if (access && refresh) {
         setTokens({ access, refresh });
@@ -85,7 +93,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Save tokens in SecureStore
     await secureStore.saveTokens(res.tokens);
+    await secureStore.saveHasLoggedIn();
     setTokens(res.tokens);
+    setHasEverLoggedIn(true);
 
     // Map and cache profile in SQLite DB
     const mappedUser = mapBackendToUserProfile(res.user, res.profile, res.requires_password_reset);
@@ -96,6 +106,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       type: 'success',
       text1: 'Welcome back!',
       text2: `Logged in as ${mappedUser.fullName}`,
+    });
+  };
+
+  /**
+   * Handle student self-registration
+   */
+  const signup = async (payload: StudentSignupPayload): Promise<void> => {
+    const res = await authAPI.signup(payload);
+
+    // Save tokens in SecureStore
+    await secureStore.saveTokens(res.tokens);
+    await secureStore.saveHasLoggedIn();
+    setTokens(res.tokens);
+    setHasEverLoggedIn(true);
+
+    // Map and cache profile in SQLite DB
+    const mappedUser = mapBackendToUserProfile(res.user, res.profile, false);
+    setUser(mappedUser);
+    await localDB.saveUserProfile(mappedUser);
+
+    Toast.show({
+      type: 'success',
+      text1: 'Account Created!',
+      text2: `Welcome to TimeMap, ${mappedUser.fullName}`,
     });
   };
 
@@ -128,12 +162,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async (): Promise<void> => {
     try {
       await secureStore.clearTokens();
+      await secureStore.clearHasLoggedIn();
       await localDB.clearUserProfile();
     } catch (err) {
       console.error('[AuthContext] Logout error:', err);
     } finally {
       setTokens(null);
       setUser(null);
+      setHasEverLoggedIn(false);
       Toast.show({
         type: 'info',
         text1: 'Signed out',
@@ -165,7 +201,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         isAuthenticated,
         requiresPasswordReset,
+        hasEverLoggedIn,
         login,
+        signup,
         resetPassword,
         logout,
         refreshProfile,
