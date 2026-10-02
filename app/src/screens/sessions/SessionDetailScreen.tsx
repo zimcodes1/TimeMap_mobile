@@ -231,6 +231,23 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
 		}
 	}, [session?.date, session?.endTime]);
 
+	const isOngoing = useMemo(() => {
+		if (!session?.date || !session?.startTime || !session?.endTime) return false;
+		if (session.status === "cancelled") return false;
+		try {
+			const [y, mon, d] = session.date.split("-").map(Number);
+			const [startH, startM] = session.startTime.split(":").map(Number);
+			const [endH, endM] = session.endTime.split(":").map(Number);
+			if (!y || !mon || !d || isNaN(startH) || isNaN(endH)) return false;
+			const now = Date.now();
+			const startDt = new Date(y, mon - 1, d, startH, startM || 0, 0).getTime();
+			const endDt = new Date(y, mon - 1, d, endH, endM || 0, 0).getTime();
+			return now >= startDt && now <= endDt;
+		} catch {
+			return false;
+		}
+	}, [session?.date, session?.startTime, session?.endTime, session?.status]);
+
 	if (isLoading) {
 		return (
 			<SafeAreaView style={styles.safeArea}>
@@ -412,16 +429,28 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
 					contentContainerStyle={styles.scrollContent}
 				>
 					{/* Header card */}
-					<Card variant="flat" style={styles.headerCard}>
+					<Card
+						variant="flat"
+						style={[
+							styles.headerCard,
+							isLecturer && isOngoing
+								? { borderColor: 'rgba(245, 158, 11, 0.5)', borderWidth: 1.5 }
+								: null,
+						]}
+					>
 						<View style={styles.courseRow}>
 							<Text style={styles.courseCode}>{session.course.code}</Text>
 							<View style={styles.badgeRow}>
-								{isPast ? <Badge variant="secondary">Past</Badge> : null}
+								{isLecturer && isOngoing ? (
+									<Badge variant="warning">Ongoing</Badge>
+								) : isPast ? (
+									<Badge variant="secondary">Past</Badge>
+								) : null}
 								{session.status === "cancelled" ? (
 									<Badge variant="danger">Cancelled</Badge>
 								) : session.reportId ? (
 									<Badge variant="primary">Reported</Badge>
-								) : !isPast ? (
+								) : !isPast && !(isLecturer && isOngoing) ? (
 									<Badge variant={STATUS_VARIANT[session.status]}>
 										{STATUS_LABEL[session.status]}
 									</Badge>

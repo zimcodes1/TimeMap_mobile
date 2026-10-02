@@ -14,6 +14,7 @@ import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Session, SessionStatus } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -37,6 +38,8 @@ export interface SessionCardProps {
   onMorePress?: () => void;
   /** Highlight the card with a green left accent (e.g. current/upcoming session) */
   isHighlighted?: boolean;
+  /** Explicit override for lecturer role. If omitted, resolved from useAuth() */
+  isLecturer?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -46,7 +49,10 @@ export const SessionCard: React.FC<SessionCardProps> = ({
   onPress,
   onMorePress,
   isHighlighted = false,
+  isLecturer,
 }) => {
+  const { user } = useAuth();
+  const effectiveIsLecturer = isLecturer ?? (user?.role === 'lecturer');
   const { label, variant } = STATUS_CONFIG[session.status];
   const lecturerNames = session.lecturers.map((l) => l.name).join(', ');
 
@@ -63,27 +69,69 @@ export const SessionCard: React.FC<SessionCardProps> = ({
     }
   }, [session.date, session.endTime]);
 
+  const isOngoing = React.useMemo(() => {
+    try {
+      if (!session.date || !session.startTime || !session.endTime) return false;
+      if (session.status === 'cancelled') return false;
+      const [year, month, day] = session.date.split('-').map(Number);
+      const [startH, startM] = session.startTime.split(':').map(Number);
+      const [endH, endM] = session.endTime.split(':').map(Number);
+      if (!year || !month || !day || isNaN(startH) || isNaN(endH)) return false;
+      const now = Date.now();
+      const startDt = new Date(year, month - 1, day, startH, startM || 0, 0).getTime();
+      const endDt = new Date(year, month - 1, day, endH, endM || 0, 0).getTime();
+      return now >= startDt && now <= endDt;
+    } catch {
+      return false;
+    }
+  }, [session.date, session.startTime, session.endTime, session.status]);
+
+  const isLecturerOngoing = effectiveIsLecturer && isOngoing;
+  const showAccent = isLecturerOngoing || isPast || isHighlighted;
+
+  const accentColor = isLecturerOngoing
+    ? colors.warning
+    : isPast
+    ? colors.textSubtle
+    : colors.primary;
+
+  const cardBorderColor = isLecturerOngoing
+    ? 'rgba(245, 158, 11, 0.5)'
+    : isPast
+    ? colors.border
+    : isHighlighted
+    ? colors.primary
+    : colors.border;
+
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.card, isHighlighted && styles.highlighted, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.card,
+        { borderColor: cardBorderColor },
+        pressed && styles.pressed,
+      ]}
     >
       {/* Left accent bar */}
-      {isHighlighted && <View style={styles.accentBar} />}
+      {showAccent ? (
+        <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
+      ) : null}
 
       <View style={styles.body}>
         {/* Top row — course code + badge + overflow */}
         <View style={styles.topRow}>
           <View style={styles.courseInfo}>
             <Text style={styles.courseCode}>{session.course.code}</Text>
-            {isPast ? (
+            {isLecturerOngoing ? (
+              <Badge variant="warning" style={styles.badge}>Ongoing</Badge>
+            ) : isPast ? (
               <Badge variant="secondary" style={styles.badge}>Past</Badge>
             ) : null}
             {session.status === 'cancelled' ? (
               <Badge variant="danger" style={styles.badge}>Cancelled</Badge>
             ) : session.reportId ? (
               <Badge variant="primary" style={styles.badge}>Reported</Badge>
-            ) : !isPast ? (
+            ) : !isPast && !isLecturerOngoing ? (
               <Badge variant={variant} style={styles.badge}>{label}</Badge>
             ) : null}
           </View>
