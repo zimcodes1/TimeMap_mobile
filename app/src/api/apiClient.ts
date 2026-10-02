@@ -99,7 +99,7 @@ export async function apiClient<T = any>(
   }
 
   const method = (restOptions.method || 'GET').toUpperCase();
-  console.log(`[apiClient] 🚀 ${method} ${url}`);
+  console.log(`[apiClient] ${method} ${url}`);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -120,9 +120,9 @@ export async function apiClient<T = any>(
       ...restOptions,
       headers,
     });
-    console.log(`[apiClient] 📥 ${response.status} ${method} ${url}`);
+    console.log(`[apiClient] ${response.status} ${method} ${url}`);
   } catch (netError: any) {
-    console.error(`[apiClient] ❌ Network request failed for ${method} ${url}:`, netError?.message || netError);
+    console.error(`[apiClient] Network request failed for ${method} ${url}:`, netError?.message || netError);
     throw new ApiError(0, 'Network request failed. Please check your connection.', netError);
   }
 
@@ -154,7 +154,7 @@ export async function apiClient<T = any>(
 
       if (!retryResponse.ok) {
         const errData = await retryResponse.json().catch(() => ({}));
-        console.error(`[apiClient] ❌ Retry failed with ${retryResponse.status} ${url}:`, errData);
+        console.error(`[apiClient] Retry failed with ${retryResponse.status} ${url}:`, errData);
         throw new ApiError(retryResponse.status, errData.detail || 'Request failed after refresh', errData);
       }
 
@@ -168,7 +168,7 @@ export async function apiClient<T = any>(
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
-    console.error(`[apiClient] ❌ Error ${response.status} from ${method} ${url}:`, errData);
+    console.error(`[apiClient] Error ${response.status} from ${method} ${url}:`, errData);
     const message = errData.detail || errData.message || `Request failed with status ${response.status}`;
     throw new ApiError(response.status, message, errData);
   }

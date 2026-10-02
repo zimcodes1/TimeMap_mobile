@@ -9,14 +9,18 @@ import { NotificationType } from '@/types';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 const TYPE_OPTIONS: { key: NotificationType | 'all'; label: string }[] = [
-  { key: 'all',                 label: 'All Types' },
-  { key: 'schedule_change',     label: 'Schedule' },
-  { key: 'report_submitted',    label: 'Reports' },
-  { key: 'report_responded',    label: 'Responses' },
-  { key: 'window_reminder',     label: 'Reminders' },
-  { key: 'session_unreported',  label: 'Alerts' },
-  { key: 'discrepancy_approved',label: 'Approvals' },
-  { key: 'discrepancy_rejected',label: 'Rejections' },
+  { key: 'all',                   label: 'All Types' },
+  { key: 'schedule_change',       label: 'Schedule' },
+  { key: 'session_shifted',       label: 'Shifted' },
+  { key: 'session_cancelled',     label: 'Cancelled' },
+  { key: 'reporting_window_open', label: 'Window Open' },
+  { key: 'window_reminder',       label: 'Reminders' },
+  { key: 'session_unreported',    label: 'Alerts' },
+  { key: 'report_submitted',      label: 'Reports' },
+  { key: 'report_responded',      label: 'Responses' },
+  { key: 'discrepancy_submitted', label: 'Discrepancies' },
+  { key: 'discrepancy_approved',  label: 'Approvals' },
+  { key: 'discrepancy_rejected',  label: 'Rejections' },
 ];
 
 export interface NotificationFilterValues {

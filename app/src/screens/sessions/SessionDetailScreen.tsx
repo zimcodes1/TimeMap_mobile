@@ -170,9 +170,7 @@ const ReportWindowBanner: React.FC<{
 		<Card variant="outlined" style={[styles.banner, styles.bannerMutedBg]}>
 			<View style={styles.bannerRow}>
 				<AlertCircle size={16} color={colors.textSubtle} />
-				<Text style={styles.bannerMuted}>
-					Reporting window has expired (closes 30 mins after lecture).
-				</Text>
+				<Text style={styles.bannerMuted}>Reporting window has expired.</Text>
 			</View>
 		</Card>
 	);
@@ -232,7 +230,8 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
 	}, [session?.date, session?.endTime]);
 
 	const isOngoing = useMemo(() => {
-		if (!session?.date || !session?.startTime || !session?.endTime) return false;
+		if (!session?.date || !session?.startTime || !session?.endTime)
+			return false;
 		if (session.status === "cancelled") return false;
 		try {
 			const [y, mon, d] = session.date.split("-").map(Number);
@@ -434,7 +433,7 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
 						style={[
 							styles.headerCard,
 							isLecturer && isOngoing
-								? { borderColor: 'rgba(245, 158, 11, 0.5)', borderWidth: 1.5 }
+								? { borderColor: "rgba(245, 158, 11, 0.5)", borderWidth: 1.5 }
 								: null,
 						]}
 					>
@@ -759,7 +758,11 @@ const styles = StyleSheet.create({
 	},
 	bannerWrapper: { marginBottom: 16 },
 	banner: { padding: 12 },
-	bannerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+	bannerRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 8,
+	},
 	bannerContent: { gap: 10 },
 	bannerText: { fontSize: 14, fontWeight: "600" },
 	bannerMuted: { fontSize: 13, color: colors.textSubtle, fontWeight: "600" },

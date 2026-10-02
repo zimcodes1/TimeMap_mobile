@@ -10,24 +10,35 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Notification, NotificationType } from '@/types';
 
-// ─── Type config ──────────────────────────────────────────────────────────────
+const DEFAULT_CONFIG = {
+  Icon: Bell,
+  accent: colors.primary,
+  label: 'Notification',
+};
 
 const TYPE_CONFIG: Record<
-  NotificationType,
+  string,
   { Icon: React.ElementType; accent: string; label: string }
 > = {
   schedule_change:       { Icon: CalendarClock,  accent: colors.info,       label: 'Schedule Change' },
+  session_shifted:       { Icon: CalendarClock,  accent: colors.info,       label: 'Session Shifted' },
+  session_cancelled:     { Icon: CalendarClock,  accent: colors.danger,     label: 'Session Cancelled' },
+  reporting_window_open: { Icon: Clock,          accent: colors.warning,    label: 'Reporting Window Open' },
+  window_reminder:       { Icon: Clock,          accent: colors.warning,    label: 'Window Reminder' },
+  session_unreported:    { Icon: Bell,            accent: colors.danger,     label: 'Unreported Session' },
   report_submitted:      { Icon: FileText,        accent: colors.primary,    label: 'Report Submitted' },
   report_responded:      { Icon: MessageCircle,   accent: colors.primary,    label: 'Report Response' },
-  window_reminder:       { Icon: Clock,           accent: colors.warning,    label: 'Window Reminder' },
-  session_unreported:    { Icon: Bell,            accent: colors.danger,     label: 'Unreported Session' },
+  discrepancy_submitted: { Icon: FileText,        accent: colors.warning,    label: 'Discrepancy Submitted' },
   discrepancy_approved:  { Icon: ShieldCheck,     accent: colors.primary,    label: 'Request Approved' },
   discrepancy_rejected:  { Icon: ShieldX,         accent: colors.danger,     label: 'Request Rejected' },
   general:               { Icon: Info,            accent: colors.textSubtle, label: 'General' },
 };
 
-function formatDateTime(isoString: string): string {
-  return new Date(isoString).toLocaleString('en-NG', {
+function formatDateTime(isoString?: string): string {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleString('en-NG', {
     dateStyle: 'long',
     timeStyle: 'short',
   });
@@ -56,8 +67,10 @@ export const NotificationDetailBottomSheet: React.FC<NotificationDetailBottomShe
 }) => {
   if (!notification) return null;
 
-  const config = TYPE_CONFIG[notification.type];
-  const { Icon, accent, label } = config;
+  const config = (notification.type && TYPE_CONFIG[notification.type]) || DEFAULT_CONFIG;
+  const Icon = config.Icon || Bell;
+  const accent = config.accent || colors.primary;
+  const label = config.label || 'Notification';
   const hasRelated = !!notification.relatedModel && !!notification.relatedId;
 
   return (

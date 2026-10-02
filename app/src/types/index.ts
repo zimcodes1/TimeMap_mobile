@@ -65,13 +65,18 @@ export interface Report {
 
 export type NotificationType =
   | 'schedule_change'
-  | 'report_submitted'
-  | 'report_responded'
+  | 'session_shifted'
+  | 'session_cancelled'
+  | 'reporting_window_open'
   | 'window_reminder'
   | 'session_unreported'
+  | 'report_submitted'
+  | 'report_responded'
+  | 'discrepancy_submitted'
   | 'discrepancy_approved'
   | 'discrepancy_rejected'
-  | 'general';
+  | 'general'
+  | (string & {});
 
 export interface Notification {
   id: string;

@@ -14,24 +14,35 @@ import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { Notification, NotificationType } from '@/types';
 
-// ─── Type → icon + accent mapping ────────────────────────────────────────────
+const DEFAULT_CONFIG = {
+  Icon: Bell,
+  accent: colors.primary,
+  label: 'Notification',
+};
 
 const TYPE_CONFIG: Record<
-  NotificationType,
+  string,
   { Icon: React.ElementType; accent: string; label: string }
 > = {
   schedule_change:       { Icon: CalendarClock,  accent: colors.info,    label: 'Schedule' },
+  session_shifted:       { Icon: CalendarClock,  accent: colors.info,    label: 'Shifted' },
+  session_cancelled:     { Icon: CalendarClock,  accent: colors.danger,  label: 'Cancelled' },
+  reporting_window_open: { Icon: Clock,          accent: colors.warning, label: 'Window Open' },
+  window_reminder:       { Icon: Clock,          accent: colors.warning, label: 'Reminder' },
+  session_unreported:    { Icon: Bell,            accent: colors.danger,  label: 'Alert' },
   report_submitted:      { Icon: FileText,        accent: colors.primary, label: 'Report' },
   report_responded:      { Icon: MessageCircle,   accent: colors.primary, label: 'Response' },
-  window_reminder:       { Icon: Clock,           accent: colors.warning, label: 'Reminder' },
-  session_unreported:    { Icon: Bell,            accent: colors.danger,  label: 'Alert' },
+  discrepancy_submitted: { Icon: FileText,        accent: colors.warning, label: 'Discrepancy' },
   discrepancy_approved:  { Icon: ShieldCheck,     accent: colors.primary, label: 'Approved' },
   discrepancy_rejected:  { Icon: ShieldX,         accent: colors.danger,  label: 'Rejected' },
   general:               { Icon: Info,            accent: colors.textSubtle, label: 'Info' },
 };
 
-function formatRelativeTime(isoString: string): string {
-  const diff = Date.now() - new Date(isoString).getTime();
+function formatRelativeTime(isoString?: string): string {
+  if (!isoString) return '';
+  const time = new Date(isoString).getTime();
+  if (isNaN(time)) return '';
+  const diff = Math.max(0, Date.now() - time);
   const mins = Math.floor(diff / 60_000);
   if (mins < 2) return 'Just now';
   if (mins < 60) return `${mins}m ago`;
@@ -53,8 +64,10 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
   notification,
   onPress,
 }) => {
-  const config = TYPE_CONFIG[notification.type];
-  const { Icon, accent, label } = config;
+  const config = (notification?.type && TYPE_CONFIG[notification.type]) || DEFAULT_CONFIG;
+  const Icon = config.Icon || Bell;
+  const accent = config.accent || colors.primary;
+  const label = config.label || 'Notification';
 
   return (
     <Pressable
