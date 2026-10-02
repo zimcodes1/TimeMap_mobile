@@ -39,12 +39,29 @@ export const ReportDetailBottomSheet: React.FC<
 	const HeldIcon = report.held ? CheckCircle : XCircle;
 	const heldColor = report.held ? colors.primary : colors.danger;
 
+	const venueName = report.session?.venue?.name || "TBA";
+	const courseCode = report.session?.course?.code || "Course";
+	const sessionDate = report.session?.date || "";
+	const startTime = report.session?.startTime || "";
+	const endTime = report.session?.endTime || "";
+	const timeDisplay = startTime && endTime ? `${startTime} - ${endTime}` : "Time TBA";
+
+	const lecturerNames =
+		report.session?.lecturers && report.session.lecturers.length > 0
+			? report.session.lecturers
+					.map((l) => (typeof l === "string" ? l : l.name || (l as any).full_name))
+					.filter(Boolean)
+					.join(", ")
+			: "";
+
+	const reporterName = report.submittedBy || "Class Rep";
+
 	return (
 		<BottomSheet
 			visible={visible}
 			onClose={onClose}
 			title="Report Details"
-			subtitle={`${report.session.course.code} · ${report.session.date}`}
+			subtitle={`${courseCode}${sessionDate ? ` · ${sessionDate}` : ""}`}
 		>
 			<ScrollView showsVerticalScrollIndicator={false}>
 				{/* Session info */}
@@ -52,18 +69,16 @@ export const ReportDetailBottomSheet: React.FC<
 					<Text style={styles.sectionLabel}>Session</Text>
 					<View style={styles.infoRow}>
 						<MapPin size={14} color={colors.textSubtle} />
-						<Text style={styles.infoText}>{report.session.venue.name}</Text>
+						<Text style={styles.infoText}>{venueName}</Text>
 					</View>
 					<View style={styles.infoRow}>
 						<Clock size={14} color={colors.textSubtle} />
-						<Text style={styles.infoText}>
-							{report.session.startTime} - {report.session.endTime}
-						</Text>
+						<Text style={styles.infoText}>{timeDisplay}</Text>
 					</View>
 					<View style={styles.infoRow}>
 						<User size={14} color={colors.textSubtle} />
 						<Text style={styles.infoText}>
-							{report.session.lecturers.map((l) => l.name).join(", ")}
+							{lecturerNames || "No lecturer assigned"}
 						</Text>
 					</View>
 				</View>
@@ -85,7 +100,7 @@ export const ReportDetailBottomSheet: React.FC<
 
 					<View style={styles.metaRow}>
 						<Text style={styles.metaLabel}>Reported by</Text>
-						<Text style={styles.metaValue}>{report.submittedBy}</Text>
+						<Text style={styles.metaValue}>{reporterName}</Text>
 					</View>
 					<View style={styles.metaRow}>
 						<Text style={styles.metaLabel}>Reported at</Text>

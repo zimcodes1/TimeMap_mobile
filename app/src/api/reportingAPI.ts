@@ -14,23 +14,73 @@ export interface RespondReportPayload {
 }
 
 export function mapBackendToReport(raw: any): Report {
-  const sessionRaw = raw.lecture_session || raw.session || {};
+  const sessionRaw = raw.lecture_session_detail || raw.session || (typeof raw.lecture_session === 'object' ? raw.lecture_session : null) || {};
   const reporterRaw = raw.reported_by || raw.reporter || {};
+
+  // Extract lecturers safely
+  let lecturers: { id: string; name: string; staffId: string }[] = [];
+  if (Array.isArray(sessionRaw.lecturers) && sessionRaw.lecturers.length > 0) {
+    lecturers = sessionRaw.lecturers.map((l: any) => ({
+      id: String(l.id || ''),
+      name: l.name || l.full_name || '',
+      staffId: l.staff_id || l.staffId || '',
+    }));
+  } else if (Array.isArray(raw.lecturers) && raw.lecturers.length > 0) {
+    lecturers = raw.lecturers.map((l: any) =>
+      typeof l === 'string'
+        ? { id: l, name: l, staffId: '' }
+        : { id: String(l.id || ''), name: l.name || l.full_name || '', staffId: l.staff_id || l.staffId || '' }
+    );
+  } else if (raw.lecturer_name) {
+    lecturers = [{ id: '1', name: raw.lecturer_name, staffId: '' }];
+  } else if (sessionRaw.lecturer_name) {
+    lecturers = [{ id: '1', name: sessionRaw.lecturer_name, staffId: '' }];
+  }
+
+  // Extract venue name safely
+  const venueName =
+    sessionRaw.venue?.name ||
+    sessionRaw.venue_name ||
+    raw.venue_name ||
+    (typeof raw.venue === 'object' ? raw.venue?.name : raw.venue) ||
+    'TBA';
+
+  const session = sessionRaw.id ? mapBackendToSession(sessionRaw) : {
+    id: String(raw.lecture_session_id || raw.session_id || (typeof raw.lecture_session === 'number' ? raw.lecture_session : '0')),
+    course: {
+      id: String(raw.course_id || '0'),
+      code: raw.course_code || 'COURSE',
+      title: raw.course_title || 'Course Lecture',
+    },
+    venue: {
+      id: String(raw.venue_id || '0'),
+      name: venueName,
+    },
+    lecturers,
+    date: raw.session_date || new Date().toISOString().split('T')[0],
+    startTime: (raw.session_start_time || '09:00').substring(0, 5),
+    endTime: (raw.session_end_time || '11:00').substring(0, 5),
+    status: (raw.held === false ? 'not_held' : 'held') as SessionStatus,
+    reportWindowOpen: false,
+  };
+
+  if ((!session.venue || !session.venue.name || session.venue.name === 'TBA') && venueName !== 'TBA') {
+    session.venue = { id: session.venue?.id || '0', name: venueName };
+  }
+  if ((!session.lecturers || session.lecturers.length === 0) && lecturers.length > 0) {
+    session.lecturers = lecturers;
+  }
+
+  const reporterName =
+    raw.reported_by_name ||
+    (typeof reporterRaw === 'object' ? reporterRaw.full_name || reporterRaw.name : undefined) ||
+    raw.reporter_name ||
+    'Class Rep';
 
   return {
     id: String(raw.id),
-    session: typeof sessionRaw === 'object' && sessionRaw.id ? mapBackendToSession(sessionRaw) : {
-      id: String(raw.lecture_session_id || raw.session_id || '0'),
-      course: { id: '0', code: raw.course_code || 'COURSE', title: raw.course_title || 'Course Lecture' },
-      venue: { id: '0', name: raw.venue_name || 'TBA' },
-      lecturers: [],
-      date: raw.session_date || new Date().toISOString().split('T')[0],
-      startTime: raw.session_start_time?.substring(0, 5) || '09:00',
-      endTime: raw.session_end_time?.substring(0, 5) || '11:00',
-      status: (raw.held === false ? 'not_held' : 'held') as SessionStatus,
-      reportWindowOpen: false,
-    },
-    submittedBy: reporterRaw.full_name || reporterRaw.name || raw.reporter_name || 'Class Rep',
+    session,
+    submittedBy: reporterName,
     held: Boolean(raw.held),
     reason: raw.reason || '',
     reportedAt: raw.created_at || raw.reported_at || new Date().toISOString(),

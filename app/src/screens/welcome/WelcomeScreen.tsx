@@ -103,8 +103,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 						<View style={styles.actionContainer}>
 							<Button
 								variant="primary"
-								size="lg"
+								size="md"
 								onPress={onLoginPress}
+								style={{ borderRadius: 30 }}
 								rightIcon={
 									<ArrowRight size={18} color={colors.primaryForeground} />
 								}

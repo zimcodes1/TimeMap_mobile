@@ -6,7 +6,7 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, AlertCircle, CheckCircle, XCircle, MapPin, Clock } from 'lucide-react-native';
+import { ArrowLeft, AlertCircle, CheckCircle, XCircle, MapPin, Clock, User } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { Badge } from '@/components/ui/Badge';
@@ -113,24 +113,35 @@ export const ReportDetailScreen: React.FC<ReportDetailScreenProps> = ({
           {/* Course / session header */}
           <Card variant="flat" style={styles.headerCard}>
             <View style={styles.courseRow}>
-              <Text style={styles.courseCode}>{report.session.course.code}</Text>
+              <Text style={styles.courseCode}>{report.session?.course?.code || 'Course'}</Text>
               <Badge variant={statusVariant}>
                 {report.status === 'responded' ? 'Responded' :
                  report.status === 'disputed'  ? 'Disputed'  : 'Pending'}
               </Badge>
             </View>
-            <Text style={styles.courseTitle}>{report.session.course.title}</Text>
+            <Text style={styles.courseTitle}>{report.session?.course?.title || 'Lecture Session'}</Text>
             <View style={styles.metaRow}>
               <View style={styles.metaItem}>
                 <Clock size={13} color={colors.textSubtle} />
                 <Text style={styles.metaText}>
-                  {report.session.date} · {report.session.startTime}–{report.session.endTime}
+                  {report.session?.date} · {report.session?.startTime}–{report.session?.endTime}
                 </Text>
               </View>
               <View style={styles.metaItem}>
                 <MapPin size={13} color={colors.textSubtle} />
-                <Text style={styles.metaText}>{report.session.venue.name}</Text>
+                <Text style={styles.metaText}>{report.session?.venue?.name || 'TBA'}</Text>
               </View>
+              {report.session?.lecturers && report.session.lecturers.length > 0 ? (
+                <View style={styles.metaItem}>
+                  <User size={13} color={colors.textSubtle} />
+                  <Text style={styles.metaText}>
+                    {report.session.lecturers
+                      .map((l) => (typeof l === 'string' ? l : l.name || (l as any).full_name))
+                      .filter(Boolean)
+                      .join(', ')}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </Card>
 
@@ -153,7 +164,7 @@ export const ReportDetailScreen: React.FC<ReportDetailScreenProps> = ({
             <View style={styles.reportMeta}>
               <View style={styles.reportMetaRow}>
                 <Text style={styles.reportMetaLabel}>Reported by</Text>
-                <Text style={styles.reportMetaValue}>{report.submittedBy}</Text>
+                <Text style={styles.reportMetaValue}>{report.submittedBy || 'Class Rep'}</Text>
               </View>
               <View style={styles.reportMetaRow}>
                 <Text style={styles.reportMetaLabel}>Reported at</Text>
