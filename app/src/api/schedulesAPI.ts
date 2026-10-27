@@ -77,6 +77,59 @@ export function mapBackendToAcademicSession(raw: any): AcademicSession {
 }
 
 /**
+ * Mapper function to transform raw backend Exam sitting response into mobile Session object
+ */
+export function mapBackendToExamSession(raw: any): Session {
+  const dateStr = raw.date || new Date().toISOString().split('T')[0];
+  const startTimeStr = raw.start_time ? raw.start_time.substring(0, 5) : '09:00';
+  const endTimeStr = raw.end_time ? raw.end_time.substring(0, 5) : '11:00';
+
+  const courseRaw = raw.course || {};
+  const venueRaw = raw.venue || {};
+
+  const venuesList = Array.isArray(raw.venues)
+    ? raw.venues.map((v: any) => ({
+        venueId: v.venue_id ? String(v.venue_id) : undefined,
+        venueName: v.venue_name || 'TBA',
+        students: v.students,
+        capacity: v.capacity,
+        turns: v.turns,
+      }))
+    : undefined;
+
+  return {
+    id: String(raw.id || `exam_${courseRaw.id || raw.id}_${dateStr}`),
+    course: {
+      id: String(courseRaw.id || raw.course_id || raw.id),
+      code: courseRaw.code || raw.course_code || 'EXAM',
+      title: courseRaw.title || raw.course_title || 'Examination Sitting',
+      department: courseRaw.department || raw.department_name || undefined,
+      level: courseRaw.level ? String(courseRaw.level) : undefined,
+    },
+    venue: {
+      id: String(venueRaw.id || raw.venue_id || 'v_exam'),
+      name: venueRaw.name || raw.venue_name || 'TBA',
+      building: venueRaw.building || raw.venue_building || undefined,
+    },
+    lecturers: [],
+    date: dateStr,
+    startTime: startTimeStr,
+    endTime: endTimeStr,
+    status: (raw.status as SessionStatus) || 'scheduled',
+    reportWindowOpen: false,
+    reportId: undefined,
+    timetableEntryId: raw.timetable_entry ? String(raw.timetable_entry) : undefined,
+
+    // Exam specific
+    isExam: true,
+    examType: raw.exam_type || 'written',
+    durationMinutes: raw.duration_minutes || 120,
+    venuesList,
+    candidatesCount: raw.student_count || raw.candidates_count,
+  };
+}
+
+/**
  * Mapper function to transform raw backend LectureSession response into mobile Session object
  */
 export function mapBackendToSession(raw: any): Session {
@@ -317,6 +370,31 @@ export const schedulesAPI = {
     } catch (error) {
       console.warn('[schedulesAPI] Failed to get active semester:', error);
       throw error;
+    }
+  },
+
+  /**
+   * Fetch published exam schedules for the current student from GET /api/scheduling/exam-sittings/my-exams/
+   */
+  async getExamSchedules(params: GetSessionsParams = {}): Promise<Session[]> {
+    try {
+      const queryParams: Record<string, string> = {};
+      if (params.date) queryParams['date'] = params.date;
+      if (params.startDate) queryParams['start_date'] = params.startDate;
+      if (params.endDate) queryParams['end_date'] = params.endDate;
+
+      const rawExams = await apiClient<any[]>('/scheduling/exam-sittings/my-exams/', {
+        method: 'GET',
+        params: queryParams,
+      });
+
+      if (Array.isArray(rawExams)) {
+        return rawExams.map(mapBackendToExamSession);
+      }
+      return [];
+    } catch (error) {
+      console.warn('[schedulesAPI] Failed to fetch exam schedules:', error);
+      return [];
     }
   },
 };

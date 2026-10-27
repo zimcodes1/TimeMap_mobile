@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { MapPin, Clock, User, ArrowRight } from 'lucide-react-native';
+import { MapPin, Clock, User, ArrowRight, GraduationCap, Users } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { BottomSheet } from '@/components/ui/BottomSheet';
@@ -46,18 +46,25 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
   onViewDetails,
 }) => {
   if (!session) return null;
+  const isExam = Boolean(session.isExam);
 
   return (
     <BottomSheet
       visible={visible}
       onClose={onClose}
       title={session.course.code}
-      subtitle={session.course.title}
+      subtitle={isExam ? `${session.course.title} · Examination` : session.course.title}
     >
       <View style={styles.badgeRow}>
-        <Badge variant={STATUS_VARIANT[session.status]}>
-          {STATUS_LABEL[session.status]}
-        </Badge>
+        {isExam ? (
+          <Badge variant="info" style={styles.examBadge}>
+            {session.examType ? `Exam · ${session.examType.toUpperCase()}` : 'Examination Sitting'}
+          </Badge>
+        ) : (
+          <Badge variant={STATUS_VARIANT[session.status]}>
+            {STATUS_LABEL[session.status]}
+          </Badge>
+        )}
       </View>
 
       <View style={styles.infoList}>
@@ -69,6 +76,7 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
             <Text style={styles.infoLabel}>Time</Text>
             <Text style={styles.infoValue}>
               {session.startTime} – {session.endTime}
+              {isExam && session.durationMinutes ? ` (${session.durationMinutes} mins)` : ''}
             </Text>
           </View>
         </View>
@@ -83,10 +91,31 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
             {session.venue.building ? (
               <Text style={styles.infoSubValue}>{session.venue.building}</Text>
             ) : null}
+            {isExam && session.venuesList && session.venuesList.length > 1 ? (
+              <View style={styles.venuesListWrapper}>
+                {session.venuesList.map((v, i) => (
+                  <Text key={`${v.venueName}-${i}`} style={styles.venueItemText}>
+                    • {v.venueName} {v.turns && v.turns > 1 ? `(${v.turns} turns)` : ''} {v.students ? `[${v.students} students]` : ''}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
           </View>
         </View>
 
-        {session.lecturers.length > 0 ? (
+        {isExam && session.candidatesCount ? (
+          <View style={styles.infoRow}>
+            <View style={styles.infoIcon}>
+              <Users size={15} color={colors.textSubtle} />
+            </View>
+            <View>
+              <Text style={styles.infoLabel}>Registered Candidates</Text>
+              <Text style={styles.infoValue}>{session.candidatesCount} Students</Text>
+            </View>
+          </View>
+        ) : null}
+
+        {!isExam && session.lecturers.length > 0 ? (
           <View style={styles.infoRow}>
             <View style={styles.infoIcon}>
               <User size={15} color={colors.textSubtle} />
@@ -101,15 +130,26 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
         ) : null}
       </View>
 
-      <Button
-        variant="primary"
-        size="lg"
-        rightIcon={<ArrowRight size={18} color="#fff" />}
-        onPress={() => { onClose(); setTimeout(onViewDetails, 180); }}
-        style={styles.detailsBtn}
-      >
-        View Full Details
-      </Button>
+      {isExam ? (
+        <Button
+          variant="secondary"
+          size="lg"
+          onPress={onClose}
+          style={styles.detailsBtn}
+        >
+          Dismiss
+        </Button>
+      ) : (
+        <Button
+          variant="primary"
+          size="lg"
+          rightIcon={<ArrowRight size={18} color="#fff" />}
+          onPress={() => { onClose(); setTimeout(onViewDetails, 180); }}
+          style={styles.detailsBtn}
+        >
+          View Full Details
+        </Button>
+      )}
     </BottomSheet>
   );
 };
@@ -119,6 +159,19 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
 const styles = StyleSheet.create({
   badgeRow: {
     marginBottom: 16,
+  },
+  examBadge: {
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    borderColor: 'rgba(139, 92, 246, 0.35)',
+  },
+  venuesListWrapper: {
+    marginTop: 6,
+    gap: 3,
+  },
+  venueItemText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontWeight: '500',
   },
   infoList: {
     gap: 14,

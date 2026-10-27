@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 
 export interface BadgeProps {
   children: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'info';
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const Badge: React.FC<BadgeProps> = ({

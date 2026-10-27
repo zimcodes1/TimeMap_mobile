@@ -9,6 +9,7 @@ import {
   Clock,
   MoreVertical,
   User,
+  GraduationCap,
 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
@@ -87,15 +88,20 @@ export const SessionCard: React.FC<SessionCardProps> = ({
   }, [session.date, session.startTime, session.endTime, session.status]);
 
   const isLecturerOngoing = effectiveIsLecturer && isOngoing;
-  const showAccent = isLecturerOngoing || isPast || isHighlighted;
+  const isExam = Boolean(session.isExam);
+  const showAccent = isExam || isLecturerOngoing || isPast || isHighlighted;
 
-  const accentColor = isLecturerOngoing
+  const accentColor = isExam
+    ? '#8B5CF6'
+    : isLecturerOngoing
     ? colors.warning
     : isPast
     ? colors.textSubtle
     : colors.primary;
 
-  const cardBorderColor = isLecturerOngoing
+  const cardBorderColor = isExam
+    ? 'rgba(139, 92, 246, 0.4)'
+    : isLecturerOngoing
     ? 'rgba(245, 158, 11, 0.5)'
     : isPast
     ? colors.border
@@ -122,20 +128,28 @@ export const SessionCard: React.FC<SessionCardProps> = ({
         <View style={styles.topRow}>
           <View style={styles.courseInfo}>
             <Text style={styles.courseCode}>{session.course.code}</Text>
-            {isLecturerOngoing ? (
-              <Badge variant="warning" style={styles.badge}>Ongoing</Badge>
-            ) : isPast ? (
-              <Badge variant="secondary" style={styles.badge}>Past</Badge>
-            ) : null}
-            {session.status === 'cancelled' ? (
-              <Badge variant="danger" style={styles.badge}>Cancelled</Badge>
-            ) : session.reportId ? (
-              <Badge variant="primary" style={styles.badge}>Reported</Badge>
-            ) : !isPast && !isLecturerOngoing ? (
-              <Badge variant={variant} style={styles.badge}>{label}</Badge>
-            ) : null}
+            {isExam ? (
+              <Badge variant="info" style={styles.examBadge}>
+                {session.examType ? `Exam · ${session.examType.toUpperCase()}` : 'Exam'}
+              </Badge>
+            ) : (
+              <>
+                {isLecturerOngoing ? (
+                  <Badge variant="warning" style={styles.badge}>Ongoing</Badge>
+                ) : isPast ? (
+                  <Badge variant="secondary" style={styles.badge}>Past</Badge>
+                ) : null}
+                {session.status === 'cancelled' ? (
+                  <Badge variant="danger" style={styles.badge}>Cancelled</Badge>
+                ) : session.reportId ? (
+                  <Badge variant="primary" style={styles.badge}>Reported</Badge>
+                ) : !isPast && !isLecturerOngoing ? (
+                  <Badge variant={variant} style={styles.badge}>{label}</Badge>
+                ) : null}
+              </>
+            )}
           </View>
-          {onMorePress ? (
+          {onMorePress && !isExam ? (
             <Pressable onPress={onMorePress} hitSlop={12} style={styles.moreBtn}>
               <MoreVertical size={18} color={colors.textMuted} />
             </Pressable>
@@ -147,7 +161,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
           {session.course.title}
         </Text>
 
-        {/* Meta row — time + venue + lecturer */}
+        {/* Meta row — time + venue + lecturer/exam info */}
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>
             <Clock size={13} color={colors.textSubtle} />
@@ -163,7 +177,12 @@ export const SessionCard: React.FC<SessionCardProps> = ({
             </Text>
           </View>
 
-          {lecturerNames ? (
+          {isExam && session.durationMinutes ? (
+            <View style={styles.metaItem}>
+              <GraduationCap size={13} color="#8B5CF6" />
+              <Text style={[styles.metaText, { color: '#A78BFA' }]}>{session.durationMinutes} mins</Text>
+            </View>
+          ) : lecturerNames ? (
             <View style={styles.metaItem}>
               <User size={13} color={colors.textSubtle} />
               <Text style={styles.metaText} numberOfLines={1}>
@@ -173,12 +192,12 @@ export const SessionCard: React.FC<SessionCardProps> = ({
           ) : null}
         </View>
 
-        {/* Reporting window indicator */}
-        {session.reportWindowOpen && !session.reportId ? (
+        {/* Reporting window indicator (lectures only) */}
+        {!isExam && session.reportWindowOpen && !session.reportId ? (
           <View style={styles.windowBanner}>
             <Text style={styles.windowText}>⏳ Reporting window open</Text>
           </View>
-        ) : session.reportId ? (
+        ) : !isExam && session.reportId ? (
           <View style={[styles.windowBanner, styles.reportedBanner]}>
             <Text style={styles.reportedText}>✓ Reported</Text>
           </View>
@@ -235,6 +254,11 @@ const styles = StyleSheet.create({
   },
   badge: {
     marginLeft: 6,
+  },
+  examBadge: {
+    marginLeft: 6,
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    borderColor: 'rgba(139, 92, 246, 0.35)',
   },
   moreBtn: {
     padding: 4,

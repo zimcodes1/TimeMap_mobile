@@ -16,6 +16,7 @@ import { SessionQuickActionsBottomSheet } from '@/components/bottom-sheets/Sessi
 import { SubmitReportBottomSheet } from '@/components/bottom-sheets/SubmitReportBottomSheet';
 import { ShiftLectureBottomSheet } from '@/components/bottom-sheets/ShiftLectureBottomSheet';
 import { CancelLectureBottomSheet } from '@/components/bottom-sheets/CancelLectureBottomSheet';
+import { CalendarSessionPreviewBottomSheet } from '@/components/bottom-sheets/CalendarSessionPreviewBottomSheet';
 import { Session, SessionStatus } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useTodaySessions } from '@/hooks/useSchedules';
@@ -83,6 +84,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
   const [submitReportVisible, setSubmitReportVisible] = useState(false);
   const [shiftLectureVisible, setShiftLectureVisible] = useState(false);
   const [cancelLectureVisible, setCancelLectureVisible] = useState(false);
+  const [examPreviewSession, setExamPreviewSession] = useState<Session | null>(null);
 
   const {
     sessions,
@@ -104,6 +106,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
   }, [allSessions, canViewPast]);
 
   const handleMorePress = (session: Session) => {
+    if (session.isExam) return;
     setSelectedSession(session);
     setQuickActionsVisible(true);
   };
@@ -284,12 +287,26 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
             isError={isError}
             isRefreshing={isRefreshing}
             onRefresh={refetch}
-            onSessionPress={(s) => onNavigateToSession(s.id)}
+            onSessionPress={(s) => {
+              if (s.isExam) {
+                setExamPreviewSession(s);
+              } else {
+                onNavigateToSession(s.id);
+              }
+            }}
             onSessionMorePress={handleMorePress}
             emptyMessage={`No ${statusFilter === 'all' ? '' : statusFilter + ' '}sessions scheduled from this date forward.`}
           />
         </View>
       </View>
+
+      {/* Exam preview sheet */}
+      <CalendarSessionPreviewBottomSheet
+        visible={!!examPreviewSession}
+        onClose={() => setExamPreviewSession(null)}
+        session={examPreviewSession}
+        onViewDetails={() => setExamPreviewSession(null)}
+      />
 
       {/* Quick actions sheet */}
       <SessionQuickActionsBottomSheet

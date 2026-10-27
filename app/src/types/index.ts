@@ -43,6 +43,19 @@ export interface Session {
   reportWindowExpiresAt?: string; // ISO datetime
   reportId?: string;              // if a report already exists for this session
   timetableEntryId?: string;
+
+  // Exam schedule fields
+  isExam?: boolean;
+  examType?: 'written' | 'cbt' | 'lab_practical';
+  durationMinutes?: number;
+  venuesList?: Array<{
+    venueId?: string | number;
+    venueName: string;
+    students?: number;
+    capacity?: number;
+    turns?: number;
+  }>;
+  candidatesCount?: number;
 }
 
 // Academic Sessions & Semesters
