@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -23,6 +23,7 @@ import { ScheduleFilterBottomSheet, ScheduleFilterValues } from '@/components/bo
 import { CalendarSessionPreviewBottomSheet } from '@/components/bottom-sheets/CalendarSessionPreviewBottomSheet';
 import { Session } from '@/types';
 import { useAllSchedules } from '@/hooks/useSchedules';
+import { useActiveSemester, useAcademicSessions } from '@/hooks/useAcademicSessions';
 
 // ─── Date Helpers ─────────────────────────────────────────────────────────────
 
@@ -71,14 +72,65 @@ export const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigateToSess
     courseId: null,
   });
 
+  // Fetch current active semester (with fallback to current academic session)
+  const { activeSemester, isLoading: isLoadingSemester } = useActiveSemester();
+  const { currentSession, isLoading: isLoadingSession } = useAcademicSessions();
+
+  // Effective semester date boundary
+  const effectivePeriod = useMemo(() => {
+    if (activeSemester?.startDate && activeSemester?.endDate) {
+      return {
+        startDate: activeSemester.startDate,
+        endDate: activeSemester.endDate,
+        label: activeSemester.displayName || 'Current Semester',
+      };
+    }
+    if (currentSession?.startDate && currentSession?.endDate) {
+      return {
+        startDate: currentSession.startDate,
+        endDate: currentSession.endDate,
+        label: currentSession.label ? `${currentSession.label} Semester` : 'Current Semester',
+      };
+    }
+    return null;
+  }, [activeSemester, currentSession]);
+
+  // Adjust selectedDate when effectivePeriod loads
+  useEffect(() => {
+    if (!effectivePeriod?.startDate || !effectivePeriod?.endDate) return;
+    const today = todayStr();
+    if (today >= effectivePeriod.startDate && today <= effectivePeriod.endDate) {
+      if (selectedDate < effectivePeriod.startDate || selectedDate > effectivePeriod.endDate) {
+        setSelectedDate(today);
+      }
+    } else {
+      if (selectedDate < effectivePeriod.startDate || selectedDate > effectivePeriod.endDate) {
+        setSelectedDate(effectivePeriod.startDate);
+      }
+    }
+  }, [effectivePeriod?.startDate, effectivePeriod?.endDate, selectedDate]);
+
+  // Query schedules across the current semester
+  const semesterQueryParams = useMemo(() => {
+    if (effectivePeriod?.startDate && effectivePeriod?.endDate) {
+      return {
+        startDate: effectivePeriod.startDate,
+        endDate: effectivePeriod.endDate,
+      };
+    }
+    return {};
+  }, [effectivePeriod?.startDate, effectivePeriod?.endDate]);
+
   const {
     sessions: rawSessions,
-    isLoading,
+    isLoading: isLoadingSchedules,
     isRefreshing,
     isError,
     isOffline,
     refetch,
-  } = useAllSchedules();
+  } = useAllSchedules(semesterQueryParams);
+
+  const isLoading = isLoadingSemester || isLoadingSession || isLoadingSchedules;
 
   // Filter all sessions by course & status filters and search query
   const filteredSessions = useMemo(() => {
@@ -126,11 +178,23 @@ export const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigateToSess
 
   // Day navigation actions
   const handlePrevDay = () => {
-    setSelectedDate((prev) => addDays(prev, -1));
+    setSelectedDate((prev) => {
+      const nextDate = addDays(prev, -1);
+      if (effectivePeriod?.startDate && nextDate < effectivePeriod.startDate) {
+        return prev;
+      }
+      return nextDate;
+    });
   };
 
   const handleNextDay = () => {
-    setSelectedDate((prev) => addDays(prev, 1));
+    setSelectedDate((prev) => {
+      const nextDate = addDays(prev, 1);
+      if (effectivePeriod?.endDate && nextDate > effectivePeriod.endDate) {
+        return prev;
+      }
+      return nextDate;
+    });
   };
 
   // PanResponder for day list horizontal swipe (Swipe left -> next day, Swipe right -> prev day)
@@ -154,24 +218,39 @@ export const CalendarScreen: React.FC<CalendarScreenProps> = ({ onNavigateToSess
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerLeft}>
             <Text style={styles.title}>Calendar</Text>
-            <Text style={styles.subtitle}>Semester schedule & month grid</Text>
-          </View>
-          {isOffline ? (
-            <View style={styles.offlinePill}>
-              <WifiOff size={12} color={colors.warning} />
-              <Text style={styles.offlinePillText}>Offline</Text>
+            <View style={styles.badgeRow}>
+              <View style={styles.currentSemesterBadge}>
+                <View style={styles.badgeDot} />
+                <Text style={styles.currentSemesterText}>
+                  {activeSemester?.displayName
+                    ? `${activeSemester.displayName} · Current Semester`
+                    : 'Current Semester'}
+                </Text>
+              </View>
             </View>
-          ) : null}
+          </View>
+
+          <View style={styles.headerRight}>
+            {isOffline ? (
+              <View style={styles.offlinePill}>
+                <WifiOff size={12} color={colors.warning} />
+                <Text style={styles.offlinePillText}>Offline</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {/* Standalone Month Calendar Grid */}
+          {/* Standalone Month Calendar Grid with All Months of Current Semester */}
           <MonthCalendarGrid
             sessions={filteredSessions}
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
+            sessionStartDate={effectivePeriod?.startDate}
+            sessionEndDate={effectivePeriod?.endDate}
+            sessionLabel="Current Semester"
           />
 
           {/* Search + filter bar */}
@@ -274,21 +353,50 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 16,
     paddingBottom: 14,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: colors.textMain,
   },
-  subtitle: {
-    fontSize: 13,
-    color: colors.textSubtle,
-    fontWeight: '600',
-    marginTop: 2,
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  currentSemesterBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  badgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
+  currentSemesterText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
   },
   offlinePill: {
     flexDirection: 'row',
@@ -300,7 +408,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(245,158,11,0.25)',
-    marginTop: 4,
   },
   offlinePillText: {
     fontSize: 11,

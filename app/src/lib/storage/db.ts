@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { UserProfile, Session, SessionStatus, AnalyticsData } from '@/types';
+import { UserProfile, Session, SessionStatus, AnalyticsData, AcademicSession, Semester } from '@/types';
 
 const DB_NAME = 'timemap_local.db';
 
@@ -386,5 +386,48 @@ export const localDB = {
    */
   async setLastAnalyticsSyncTime(timestamp: number, keySuffix: string = 'default'): Promise<void> {
     await this.setCache(`analytics_last_sync_${keySuffix}`, timestamp);
+  },
+
+  /**
+   * Save academic sessions in SQLite offline cache
+   */
+  async saveAcademicSessions(sessions: AcademicSession[]): Promise<void> {
+    await this.setCache('academic_sessions', sessions);
+    await this.setCache('academic_sessions_last_sync', Date.now());
+  },
+
+  /**
+   * Get cached academic sessions from SQLite
+   */
+  async getAcademicSessions(): Promise<AcademicSession[] | null> {
+    return this.getCache<AcademicSession[]>('academic_sessions');
+  },
+
+  /**
+   * Save current academic session
+   */
+  async saveCurrentAcademicSession(session: AcademicSession): Promise<void> {
+    await this.setCache('current_academic_session', session);
+  },
+
+  /**
+   * Get cached current academic session
+   */
+  async getCurrentAcademicSession(): Promise<AcademicSession | null> {
+    return this.getCache<AcademicSession>('current_academic_session');
+  },
+
+  /**
+   * Save active semester
+   */
+  async saveActiveSemester(semester: Semester): Promise<void> {
+    await this.setCache('active_semester', semester);
+  },
+
+  /**
+   * Get cached active semester
+   */
+  async getActiveSemester(): Promise<Semester | null> {
+    return this.getCache<Semester>('active_semester');
   },
 };

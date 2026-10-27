@@ -45,6 +45,43 @@ export interface Session {
   timetableEntryId?: string;
 }
 
+// Academic Sessions & Semesters
+
+export interface Semester {
+  id: string;
+  sessionId: string;
+  sessionLabel?: string;
+  schoolId?: string;
+  schoolName?: string;
+  name: string;
+  displayName: string;
+  startDate: string;
+  endDate: string;
+  durationType?: string;
+  durationValue?: number;
+  lectureStartDate?: string;
+  lectureEndDate?: string;
+  examStartDate?: string;
+  examEndDate?: string;
+  isActive: boolean;
+  createdByName?: string;
+  createdAt?: string;
+}
+
+export interface AcademicSession {
+  id: string;
+  schoolId: string;
+  schoolName?: string;
+  schoolCode?: string;
+  label: string;
+  startDate: string;
+  endDate: string;
+  maxSemesters?: number;
+  isCurrent: boolean;
+  semesters?: Semester[];
+  createdAt?: string;
+}
+
 //Reports
 
 export type ReportStatus = 'pending' | 'responded' | 'disputed';

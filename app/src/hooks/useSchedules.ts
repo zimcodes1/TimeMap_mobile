@@ -7,6 +7,26 @@ import { useState, useCallback, useMemo } from 'react';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
+function filterLocalSessions(sessions: Session[], params: GetSessionsParams): Session[] {
+  let result = sessions;
+  if (params.startDate) {
+    result = result.filter((s) => s.date >= params.startDate!);
+  }
+  if (params.endDate) {
+    result = result.filter((s) => s.date <= params.endDate!);
+  }
+  if (params.date) {
+    result = result.filter((s) => s.date === params.date!);
+  }
+  if (params.status) {
+    result = result.filter((s) => s.status === params.status);
+  }
+  if (params.courseId) {
+    result = result.filter((s) => s.course.id === params.courseId);
+  }
+  return result;
+}
+
 export function useAllSchedules(params: GetSessionsParams = {}) {
   const { user } = useAuth();
   const userId = user?.id ?? 'anon';
@@ -39,7 +59,7 @@ export function useAllSchedules(params: GetSessionsParams = {}) {
       // 2. Otherwise fetch live data from backend
       try {
         const liveSessions = await schedulesAPI.getSessions(params);
-        if (Object.keys(params).length === 0) {
+        if (Object.keys(params).length === 0 || (params.startDate && params.endDate)) {
           await localDB.saveSessions(liveSessions);
         }
         setIsOffline(false);
@@ -48,7 +68,7 @@ export function useAllSchedules(params: GetSessionsParams = {}) {
         console.warn('[useAllSchedules] Network fetch failed, checking SQLite cache:', err);
         if (cachedSessions && cachedSessions.length > 0) {
           setIsOffline(true);
-          return cachedSessions;
+          return filterLocalSessions(cachedSessions, params);
         }
         throw err;
       }
@@ -61,7 +81,7 @@ export function useAllSchedules(params: GetSessionsParams = {}) {
   const forceRefetch = useCallback(async () => {
     try {
       const liveSessions = await schedulesAPI.getSessions(params);
-      if (Object.keys(params).length === 0) {
+      if (Object.keys(params).length === 0 || (params.startDate && params.endDate)) {
         await localDB.saveSessions(liveSessions);
       }
       setIsOffline(false);
