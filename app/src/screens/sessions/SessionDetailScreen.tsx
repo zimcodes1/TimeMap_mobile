@@ -11,8 +11,6 @@ import {
 	Timer,
 	Lock,
 	CalendarClock,
-	XCircle,
-	WifiOff,
 } from "lucide-react-native";
 import { colors } from "@/theme/colors";
 import { Text } from "@/components/common/Text";
@@ -432,7 +430,7 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
 						variant="flat"
 						style={[
 							styles.headerCard,
-							isLecturer && isOngoing
+							isOngoing
 								? { borderColor: "rgba(245, 158, 11, 0.5)", borderWidth: 1.5 }
 								: null,
 						]}
@@ -440,20 +438,34 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
 						<View style={styles.courseRow}>
 							<Text style={styles.courseCode}>{session.course.code}</Text>
 							<View style={styles.badgeRow}>
-								{isLecturer && isOngoing ? (
-									<Badge variant="warning">Ongoing</Badge>
-								) : isPast ? (
-									<Badge variant="secondary">Past</Badge>
-								) : null}
-								{session.status === "cancelled" ? (
-									<Badge variant="danger">Cancelled</Badge>
-								) : session.reportId ? (
-									<Badge variant="primary">Reported</Badge>
-								) : !isPast && !(isLecturer && isOngoing) ? (
-									<Badge variant={STATUS_VARIANT[session.status]}>
-										{STATUS_LABEL[session.status]}
+								{session.isExam ? (
+									<Badge variant="info" style={styles.examBadge}>
+										{session.examType
+											? `Exam · ${session.examType.toUpperCase()}`
+											: "Exam"}
 									</Badge>
-								) : null}
+								) : (
+									<>
+										{isOngoing ? (
+											<Badge variant="warning">Ongoing</Badge>
+										) : isClassRep &&
+										  session.reportWindowOpen &&
+										  !session.reportId ? (
+											<Badge variant="warning">Window Open</Badge>
+										) : isPast ? (
+											<Badge variant="secondary">Past</Badge>
+										) : null}
+										{session.status === "cancelled" ? (
+											<Badge variant="danger">Cancelled</Badge>
+										) : session.reportId ? (
+											<Badge variant="primary">Reported</Badge>
+										) : !isPast && !isOngoing ? (
+											<Badge variant={STATUS_VARIANT[session.status]}>
+												{STATUS_LABEL[session.status]}
+											</Badge>
+										) : null}
+									</>
+								)}
 							</View>
 						</View>
 						<Text style={styles.courseTitle}>{session.course.title}</Text>
@@ -683,6 +695,10 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		alignItems: "center",
 		gap: 6,
+	},
+	examBadge: {
+		backgroundColor: "rgba(139, 92, 246, 0.15)",
+		borderColor: "rgba(139, 92, 246, 0.35)",
 	},
 	courseCode: { fontSize: 20, fontWeight: "700", color: colors.textMain },
 	courseTitle: {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { MapPin, Clock, User, ArrowRight, GraduationCap, Users } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -7,6 +7,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Session, SessionStatus } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -46,7 +47,39 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
   onViewDetails,
 }) => {
   if (!session) return null;
+  const { user } = useAuth();
+  const isClassRep = Boolean(user?.isClassRep || user?.role === 'class_rep');
   const isExam = Boolean(session.isExam);
+
+  const isPast = useMemo(() => {
+    try {
+      if (!session.date || !session.endTime) return false;
+      const [year, month, day] = session.date.split('-').map(Number);
+      const [endH, endM] = session.endTime.split(':').map(Number);
+      if (!year || !month || !day || isNaN(endH)) return false;
+      const endDt = new Date(year, month - 1, day, endH, endM || 0, 0);
+      return endDt.getTime() < Date.now();
+    } catch {
+      return false;
+    }
+  }, [session.date, session.endTime]);
+
+  const isOngoing = useMemo(() => {
+    try {
+      if (!session.date || !session.startTime || !session.endTime) return false;
+      if (session.status === 'cancelled') return false;
+      const [year, month, day] = session.date.split('-').map(Number);
+      const [startH, startM] = session.startTime.split(':').map(Number);
+      const [endH, endM] = session.endTime.split(':').map(Number);
+      if (!year || !month || !day || isNaN(startH) || isNaN(endH)) return false;
+      const now = Date.now();
+      const startDt = new Date(year, month - 1, day, startH, startM || 0, 0).getTime();
+      const endDt = new Date(year, month - 1, day, endH, endM || 0, 0).getTime();
+      return now >= startDt && now <= endDt;
+    } catch {
+      return false;
+    }
+  }, [session.date, session.startTime, session.endTime, session.status]);
 
   return (
     <BottomSheet
@@ -61,9 +94,24 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
             {session.examType ? `Exam · ${session.examType.toUpperCase()}` : 'Examination Sitting'}
           </Badge>
         ) : (
-          <Badge variant={STATUS_VARIANT[session.status]}>
-            {STATUS_LABEL[session.status]}
-          </Badge>
+          <>
+            {isOngoing ? (
+              <Badge variant="warning">Ongoing</Badge>
+            ) : isClassRep && session.reportWindowOpen && !session.reportId ? (
+              <Badge variant="warning">Window Open</Badge>
+            ) : isPast ? (
+              <Badge variant="secondary">Past</Badge>
+            ) : null}
+            {session.status === 'cancelled' ? (
+              <Badge variant="danger">Cancelled</Badge>
+            ) : session.reportId ? (
+              <Badge variant="primary">Reported</Badge>
+            ) : !isPast && !isOngoing ? (
+              <Badge variant={STATUS_VARIANT[session.status]}>
+                {STATUS_LABEL[session.status]}
+              </Badge>
+            ) : null}
+          </>
         )}
       </View>
 

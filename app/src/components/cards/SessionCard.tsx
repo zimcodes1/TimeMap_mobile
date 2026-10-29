@@ -41,6 +41,8 @@ export interface SessionCardProps {
   isHighlighted?: boolean;
   /** Explicit override for lecturer role. If omitted, resolved from useAuth() */
   isLecturer?: boolean;
+  /** Explicit override for class rep role. If omitted, resolved from useAuth() */
+  isClassRep?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -51,9 +53,11 @@ export const SessionCard: React.FC<SessionCardProps> = ({
   onMorePress,
   isHighlighted = false,
   isLecturer,
+  isClassRep,
 }) => {
   const { user } = useAuth();
   const effectiveIsLecturer = isLecturer ?? (user?.role === 'lecturer');
+  const effectiveIsClassRep = isClassRep ?? Boolean(user?.isClassRep || user?.role === 'class_rep');
   const { label, variant } = STATUS_CONFIG[session.status];
   const lecturerNames = session.lecturers.map((l) => l.name).join(', ');
 
@@ -87,13 +91,12 @@ export const SessionCard: React.FC<SessionCardProps> = ({
     }
   }, [session.date, session.startTime, session.endTime, session.status]);
 
-  const isLecturerOngoing = effectiveIsLecturer && isOngoing;
   const isExam = Boolean(session.isExam);
-  const showAccent = isExam || isLecturerOngoing || isPast || isHighlighted;
+  const showAccent = isExam || isOngoing || isPast || isHighlighted;
 
   const accentColor = isExam
     ? '#8B5CF6'
-    : isLecturerOngoing
+    : isOngoing
     ? colors.warning
     : isPast
     ? colors.textSubtle
@@ -101,7 +104,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
 
   const cardBorderColor = isExam
     ? 'rgba(139, 92, 246, 0.4)'
-    : isLecturerOngoing
+    : isOngoing
     ? 'rgba(245, 158, 11, 0.5)'
     : isPast
     ? colors.border
@@ -134,8 +137,10 @@ export const SessionCard: React.FC<SessionCardProps> = ({
               </Badge>
             ) : (
               <>
-                {isLecturerOngoing ? (
+                {isOngoing ? (
                   <Badge variant="warning" style={styles.badge}>Ongoing</Badge>
+                ) : effectiveIsClassRep && session.reportWindowOpen && !session.reportId ? (
+                  <Badge variant="warning" style={styles.badge}>Window Open</Badge>
                 ) : isPast ? (
                   <Badge variant="secondary" style={styles.badge}>Past</Badge>
                 ) : null}
@@ -143,7 +148,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
                   <Badge variant="danger" style={styles.badge}>Cancelled</Badge>
                 ) : session.reportId ? (
                   <Badge variant="primary" style={styles.badge}>Reported</Badge>
-                ) : !isPast && !isLecturerOngoing ? (
+                ) : !isPast && !isOngoing ? (
                   <Badge variant={variant} style={styles.badge}>{label}</Badge>
                 ) : null}
               </>
@@ -192,12 +197,12 @@ export const SessionCard: React.FC<SessionCardProps> = ({
           ) : null}
         </View>
 
-        {/* Reporting window indicator (lectures only) */}
-        {!isExam && session.reportWindowOpen && !session.reportId ? (
+        {/* Reporting window indicator (lectures only, Class Reps only) */}
+        {!isExam && effectiveIsClassRep && session.reportWindowOpen && !session.reportId ? (
           <View style={styles.windowBanner}>
             <Text style={styles.windowText}>⏳ Reporting window open</Text>
           </View>
-        ) : !isExam && session.reportId ? (
+        ) : !isExam && effectiveIsClassRep && session.reportId ? (
           <View style={[styles.windowBanner, styles.reportedBanner]}>
             <Text style={styles.reportedText}>✓ Reported</Text>
           </View>
