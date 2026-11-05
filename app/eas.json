@@ -15,7 +15,11 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://timemap-backend-mki9.onrender.com/api"
+      }
     }
   },
   "submit": {
