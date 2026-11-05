@@ -3,6 +3,11 @@ import { UserProfile } from '@/types';
 import { secureStore, AuthTokens } from '@/lib/storage/secureStore';
 import { localDB } from '@/lib/storage/db';
 import { authAPI, mapBackendToUserProfile, LoginPayload, PasswordResetPayload, StudentSignupPayload } from '@/api/authAPI';
+import {
+  registerForPushNotificationsAsync,
+  unregisterForPushNotificationsAsync,
+  isPushPermissionGrantedAsync,
+} from '@/services/notificationService';
 import Toast from 'react-native-toast-message';
 
 export interface AuthContextType {
@@ -102,6 +107,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(mappedUser);
     await localDB.saveUserProfile(mappedUser);
 
+    // Silent device token registration if permission is granted
+    isPushPermissionGrantedAsync().then((granted) => {
+      if (granted) registerForPushNotificationsAsync();
+    });
+
     Toast.show({
       type: 'success',
       text1: 'Welcome back!',
@@ -161,6 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    */
   const logout = async (): Promise<void> => {
     try {
+      await unregisterForPushNotificationsAsync();
       await secureStore.clearTokens();
       await secureStore.clearHasLoggedIn();
       await localDB.clearUserProfile();

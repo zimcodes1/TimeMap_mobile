@@ -10,7 +10,7 @@ import { ArrowLeft, AlertTriangle } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/ui/Button';
-import { useNotificationsInbox } from '@/hooks/useNotifications';
+import { useNotificationsInbox, useMarkNotificationRead } from '@/hooks/useNotifications';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +19,7 @@ export interface NotificationResolverScreenProps {
   onBack: () => void;
   onNavigateToSession: (sessionId: string) => void;
   onNavigateToReport: (reportId: string) => void;
+  onNavigateToCalendar?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -28,32 +29,47 @@ export const NotificationResolverScreen: React.FC<NotificationResolverScreenProp
   onBack,
   onNavigateToSession,
   onNavigateToReport,
+  onNavigateToCalendar,
 }) => {
   const { notifications } = useNotificationsInbox();
+  const markReadMutation = useMarkNotificationRead();
   const notification = notifications.find((n) => n.id === notificationId);
 
   useEffect(() => {
     if (!notification) return;
 
-    // TODO(api-wiring): POST /api/notifications/inbox/{id}/read/
-    // Mark as read then resolve
+    // Mark as read
+    if (!notification.isRead) {
+      markReadMutation.mutate(notificationId);
+    }
+
     const timer = setTimeout(() => {
       if (notification.relatedModel === 'LectureSession' && notification.relatedId) {
         onNavigateToSession(notification.relatedId);
       } else if (notification.relatedModel === 'ClassRepReport' && notification.relatedId) {
         onNavigateToReport(notification.relatedId);
+      } else if (
+        (notification.relatedModel === 'ExamSitting' ||
+          notification.relatedModel === 'ExamOptimizerRun' ||
+          notification.relatedModel === 'TimetableGenerationRun') &&
+        onNavigateToCalendar
+      ) {
+        onNavigateToCalendar();
       }
-    }, 600);
+    }, 500);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [notification?.id]);
 
-  // If there's no related record or the model is unsupported, show fallback
+  // Check if deep link is supported
   const hasDeepLink =
     notification?.relatedModel &&
-    notification?.relatedId &&
     (notification.relatedModel === 'LectureSession' ||
-     notification.relatedModel === 'ClassRepReport');
+      notification.relatedModel === 'ClassRepReport' ||
+      ((notification.relatedModel === 'ExamSitting' ||
+        notification.relatedModel === 'ExamOptimizerRun' ||
+        notification.relatedModel === 'TimetableGenerationRun') &&
+        Boolean(onNavigateToCalendar)));
 
   if (!notification) {
     return (

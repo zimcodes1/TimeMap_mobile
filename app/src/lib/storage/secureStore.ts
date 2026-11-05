@@ -4,6 +4,7 @@ const ACCESS_TOKEN_KEY = 'timemap_access_token';
 const REFRESH_TOKEN_KEY = 'timemap_refresh_token';
 const USER_SESSION_KEY = 'timemap_user_session';
 const HAS_LOGGED_IN_KEY = 'timemap_has_logged_in';
+const PUSH_TOKEN_KEY = 'timemap_fcm_device_token';
 
 export interface AuthTokens {
   access: string;
@@ -92,6 +93,39 @@ export const secureStore = {
       await SecureStore.deleteItemAsync(HAS_LOGGED_IN_KEY);
     } catch (error) {
       console.error('[SecureStore] Error clearing hasLoggedIn:', error);
+    }
+  },
+
+  /**
+   * Save active push notification device token
+   */
+  async savePushToken(token: string): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(PUSH_TOKEN_KEY, token);
+    } catch (error) {
+      console.error('[SecureStore] Error saving push token:', error);
+    }
+  },
+
+  /**
+   * Retrieve active push notification device token
+   */
+  async getPushToken(): Promise<string | null> {
+    try {
+      return await SecureStore.getItemAsync(PUSH_TOKEN_KEY);
+    } catch (error) {
+      return null;
+    }
+  },
+
+  /**
+   * Clear active push notification device token
+   */
+  async clearPushToken(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(PUSH_TOKEN_KEY);
+    } catch (error) {
+      console.error('[SecureStore] Error clearing push token:', error);
     }
   },
 };

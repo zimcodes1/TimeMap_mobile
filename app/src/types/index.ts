@@ -117,6 +117,17 @@ export type NotificationType =
   | 'schedule_change'
   | 'session_shifted'
   | 'session_cancelled'
+  | 'session_postponed'
+  | 'timetable_published'
+  | 'lecture_reminder'
+  | 'exam_published'
+  | 'exam_rescheduled'
+  | 'exam_cancelled'
+  | 'exam_invigilator_assigned'
+  | 'exam_reminder'
+  | 'event_scheduled'
+  | 'event_cancelled'
+  | 'event_postponed'
   | 'reporting_window_open'
   | 'window_reminder'
   | 'session_unreported'
@@ -135,7 +146,7 @@ export interface Notification {
   body: string;
   isRead: boolean;
   createdAt: string;          // ISO datetime
-  relatedModel?: 'LectureSession' | 'ClassRepReport' | 'DiscrepancyRequest';
+  relatedModel?: 'LectureSession' | 'ClassRepReport' | 'DiscrepancyRequest' | 'ExamSitting' | 'TimetableEntry' | 'ExamOptimizerRun' | 'TimetableGenerationRun';
   relatedId?: string;
 }
 

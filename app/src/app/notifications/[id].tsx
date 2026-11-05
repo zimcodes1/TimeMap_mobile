@@ -12,6 +12,7 @@ export default function NotificationResolverRoute() {
       onBack={() => router.back()}
       onNavigateToSession={(sessionId) => router.replace(`/sessions/${sessionId}` as any)}
       onNavigateToReport={(reportId) => router.replace(`/reports/${reportId}` as any)}
+      onNavigateToCalendar={() => router.replace('/(tabs)/calendar' as any)}
     />
   );
 }
