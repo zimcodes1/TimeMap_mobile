@@ -5,7 +5,6 @@ import {
 	Image,
 	Animated,
 	Easing,
-	Pressable,
 	useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";

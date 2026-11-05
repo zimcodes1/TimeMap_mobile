@@ -64,7 +64,7 @@ async function initTables(db: SQLite.SQLiteDatabase): Promise<void> {
     if (!hasProgramCol) {
       await db.execAsync('ALTER TABLE user_profile ADD COLUMN program TEXT;');
     }
-  } catch (e) {
+  } catch {
     // Non-fatal if table info query fails
   }
 }

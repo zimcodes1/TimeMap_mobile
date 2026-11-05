@@ -39,7 +39,7 @@ export const HoldRateRing: React.FC<HoldRateRingProps> = ({
       duration: 1000,
       useNativeDriver: false,
     }).start();
-  }, [validPercentage]);
+  }, [validPercentage, animatedValue]);
 
   const strokeDashoffset = animatedValue.interpolate({
     inputRange: [0, 100],

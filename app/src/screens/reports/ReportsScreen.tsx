@@ -7,7 +7,7 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FileText, Clock } from 'lucide-react-native';
+import { FileText, Clock, WifiOff } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { ReportCard } from '@/components/cards/ReportCard';
@@ -22,7 +22,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useReports, useSubmitReport, useRespondReport } from '@/hooks/useReports';
 import { useTodaySessions } from '@/hooks/useSchedules';
 import { isSessionReportWindowOpen } from '@/api/schedulesAPI';
-import { WifiOff } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 
 // ─── Segmented tabs ────────────────────────────────────────────────────────────
@@ -139,7 +138,7 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
             sub="You can view session details from the Today or Calendar tab."
           />
           <Pressable onPress={() => setRoleHelpVisible(true)} style={styles.helpLink}>
-            <Text style={styles.helpLinkText}>Why can't I submit reports?</Text>
+            <Text style={styles.helpLinkText}>{"Why can't I submit reports?"}</Text>
           </Pressable>
           <RoleHelpBottomSheet visible={roleHelpVisible} onClose={() => setRoleHelpVisible(false)} />
         </View>

@@ -8,12 +8,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-	BarChart3,
 	Calendar,
 	CheckCircle2,
 	XCircle,
 	AlertTriangle,
-	SlidersHorizontal,
 	WifiOff,
 } from "lucide-react-native";
 import { colors } from "@/theme/colors";

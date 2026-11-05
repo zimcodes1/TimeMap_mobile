@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { schedulesAPI } from '@/api/schedulesAPI';
 import { localDB } from '@/lib/storage/db';

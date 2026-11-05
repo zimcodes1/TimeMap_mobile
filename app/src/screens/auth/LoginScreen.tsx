@@ -234,14 +234,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 					<View style={styles.footer}>
 						{activeTab === "student" ? (
 							<View style={styles.footerRow}>
-								<Text style={styles.footerText}>Don't have an account? </Text>
+								<Text style={styles.footerText}>{"Don't have an account? "}</Text>
 								<Pressable onPress={onNavigateToRegister} hitSlop={8}>
 									<Text style={styles.contactText}>Create account</Text>
 								</Pressable>
 							</View>
 						) : (
 							<Text style={styles.footerText}>
-								Don't have an account?{" "}
+								{"Don't have an account? "}
 								<Text style={styles.contactText}>
 									Contact your administrator
 								</Text>

@@ -56,7 +56,6 @@ export const SessionCard: React.FC<SessionCardProps> = ({
   isClassRep,
 }) => {
   const { user } = useAuth();
-  const effectiveIsLecturer = isLecturer ?? (user?.role === 'lecturer');
   const effectiveIsClassRep = isClassRep ?? Boolean(user?.isClassRep || user?.role === 'class_rep');
   const { label, variant } = STATUS_CONFIG[session.status];
   const lecturerNames = session.lecturers.map((l) => l.name).join(', ');

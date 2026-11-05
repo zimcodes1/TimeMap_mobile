@@ -98,7 +98,6 @@ const ReportWindowBanner: React.FC<{
 	// Calculate dynamic window state (open during lecture and up to 30 mins after)
 	const now = new Date();
 	let isUpcoming = false;
-	let isExpired = false;
 	let isOpen = session.reportWindowOpen;
 
 	try {
@@ -117,7 +116,6 @@ const ReportWindowBanner: React.FC<{
 				isUpcoming = true;
 				isOpen = false;
 			} else if (now > expiryDt) {
-				isExpired = true;
 				isOpen = false;
 			} else {
 				isOpen = true;
@@ -191,7 +189,7 @@ export const SessionDetailScreen: React.FC<SessionDetailScreenProps> = ({
 	const isClassRep = Boolean(user?.isClassRep);
 	const isLecturer = user?.role === "lecturer";
 
-	const { session, isLoading, isError, isOffline } =
+	const { session, isLoading, isError } =
 		useSessionDetail(sessionId);
 	const { reports } = useReports();
 	const submitReportMutation = useSubmitReport();

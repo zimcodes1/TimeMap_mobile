@@ -84,7 +84,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         setIsMounted(false);
       });
     }
-  }, [visible]);
+  }, [visible, isMounted, fadeAnim, scaleAnim, slideAnim]);
 
   if (!isMounted) return null;
 

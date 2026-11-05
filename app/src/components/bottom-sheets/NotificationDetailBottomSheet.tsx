@@ -8,7 +8,7 @@ import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
-import { Notification, NotificationType } from '@/types';
+import { Notification } from '@/types';
 
 const DEFAULT_CONFIG = {
   Icon: Bell,

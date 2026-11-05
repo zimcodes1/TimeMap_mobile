@@ -55,7 +55,7 @@ export const AccountDetailsBottomSheet: React.FC<AccountDetailsBottomSheetProps>
         </View>
 
         <Text style={styles.note}>
-          To update your profile details, contact your institution's administrator.
+          {"To update your profile details, contact your institution's administrator."}
         </Text>
       </ScrollView>
     </BottomSheet>

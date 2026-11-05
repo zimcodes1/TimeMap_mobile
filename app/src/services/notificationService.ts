@@ -4,8 +4,6 @@ import * as Notifications from 'expo-notifications';
 import { notificationsAPI } from '@/api/notificationsAPI';
 import { secureStore } from '@/lib/storage/secureStore';
 
-const PUSH_TOKEN_STORAGE_KEY = 'timemap_fcm_device_token';
-
 // Configure foreground presentation behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -34,9 +34,11 @@ export const NotificationResolverScreen: React.FC<NotificationResolverScreenProp
   const { notifications } = useNotificationsInbox();
   const markReadMutation = useMarkNotificationRead();
   const notification = notifications.find((n) => n.id === notificationId);
+  const handledRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!notification) return;
+    if (!notification || handledRef.current === notification.id) return;
+    handledRef.current = notification.id;
 
     // Mark as read
     if (!notification.isRead) {
@@ -59,7 +61,14 @@ export const NotificationResolverScreen: React.FC<NotificationResolverScreenProp
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [notification?.id]);
+  }, [
+    notification,
+    notificationId,
+    markReadMutation,
+    onNavigateToSession,
+    onNavigateToReport,
+    onNavigateToCalendar,
+  ]);
 
   // Check if deep link is supported
   const hasDeepLink =

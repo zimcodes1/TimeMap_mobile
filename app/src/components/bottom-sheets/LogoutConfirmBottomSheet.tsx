@@ -35,8 +35,7 @@ export const LogoutConfirmBottomSheet: React.FC<
 				{/* Copy */}
 				<Text style={styles.title}>Log out?</Text>
 				<Text style={styles.description}>
-					You'll be signed out of your TimeMap account on this device. Your
-					schedule data will reload when you log back in.
+					{"You'll be signed out of your TimeMap account on this device. Your schedule data will reload when you log back in."}
 				</Text>
 
 				{/* Actions */}

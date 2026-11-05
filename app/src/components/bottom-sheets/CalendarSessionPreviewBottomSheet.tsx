@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { MapPin, Clock, User, ArrowRight, GraduationCap, Users } from 'lucide-react-native';
+import { MapPin, Clock, User, ArrowRight, Users } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { BottomSheet } from '@/components/ui/BottomSheet';
@@ -46,14 +46,13 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
   session,
   onViewDetails,
 }) => {
-  if (!session) return null;
   const { user } = useAuth();
   const isClassRep = Boolean(user?.isClassRep || user?.role === 'class_rep');
-  const isExam = Boolean(session.isExam);
+  const isExam = Boolean(session?.isExam);
 
   const isPast = useMemo(() => {
     try {
-      if (!session.date || !session.endTime) return false;
+      if (!session?.date || !session?.endTime) return false;
       const [year, month, day] = session.date.split('-').map(Number);
       const [endH, endM] = session.endTime.split(':').map(Number);
       if (!year || !month || !day || isNaN(endH)) return false;
@@ -62,11 +61,11 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
     } catch {
       return false;
     }
-  }, [session.date, session.endTime]);
+  }, [session?.date, session?.endTime]);
 
   const isOngoing = useMemo(() => {
     try {
-      if (!session.date || !session.startTime || !session.endTime) return false;
+      if (!session?.date || !session?.startTime || !session?.endTime) return false;
       if (session.status === 'cancelled') return false;
       const [year, month, day] = session.date.split('-').map(Number);
       const [startH, startM] = session.startTime.split(':').map(Number);
@@ -79,7 +78,9 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
     } catch {
       return false;
     }
-  }, [session.date, session.startTime, session.endTime, session.status]);
+  }, [session?.date, session?.startTime, session?.endTime, session?.status]);
+
+  if (!session) return null;
 
   return (
     <BottomSheet

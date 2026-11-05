@@ -20,7 +20,7 @@ interface RequestOptions extends RequestInit {
 }
 
 let isRefreshing = false;
-let failedQueue: Array<{ resolve: (token: string) => void; reject: (error: any) => void }> = [];
+let failedQueue: { resolve: (token: string) => void; reject: (error: any) => void }[] = [];
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((promise) => {

@@ -113,7 +113,7 @@ export const secureStore = {
   async getPushToken(): Promise<string | null> {
     try {
       return await SecureStore.getItemAsync(PUSH_TOKEN_KEY);
-    } catch (error) {
+    } catch {
       return null;
     }
   },

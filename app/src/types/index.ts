@@ -48,13 +48,13 @@ export interface Session {
   isExam?: boolean;
   examType?: 'written' | 'cbt' | 'lab_practical';
   durationMinutes?: number;
-  venuesList?: Array<{
+  venuesList?: {
     venueId?: string | number;
     venueName: string;
     students?: number;
     capacity?: number;
     turns?: number;
-  }>;
+  }[];
   candidatesCount?: number;
 }
 

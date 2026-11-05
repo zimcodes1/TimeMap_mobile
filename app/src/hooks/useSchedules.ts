@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { schedulesAPI, GetSessionsParams } from '@/api/schedulesAPI';
 import { localDB } from '@/lib/storage/db';
 import { Session, SessionStatus } from '@/types';
@@ -129,7 +129,7 @@ export function useAllSchedules(params: GetSessionsParams = {}) {
       }
       return query.refetch();
     }
-  }, [params, query, user?.role, user?.isClassRep]);
+  }, [params, query, user]);
 
   return {
     sessions: query.data ?? [],

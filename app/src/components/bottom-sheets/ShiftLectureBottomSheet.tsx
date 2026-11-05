@@ -21,8 +21,6 @@ import { colors } from "@/theme/colors";
 import { Text } from "@/components/common/Text";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
 import { Session } from "@/types";
 import { useVenues, useVenueAvailability } from "@/hooks/useShiftLecture";
 import { VenueSlot } from "@/api/venuesAPI";
@@ -54,7 +52,7 @@ export function computeWeekdaysForSession(
 	const ddT = String(today.getDate()).padStart(2, '0');
 	const todayStr = `${yyyyT}-${mmT}-${ddT}`;
 
-	const DAYS: Array<{ code: 'MO' | 'TU' | 'WE' | 'TH' | 'FR'; name: string }> = [
+	const DAYS: { code: 'MO' | 'TU' | 'WE' | 'TH' | 'FR'; name: string }[] = [
 		{ code: 'MO', name: 'Monday' },
 		{ code: 'TU', name: 'Tuesday' },
 		{ code: 'WE', name: 'Wednesday' },

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
-import { Notification, NotificationType } from '@/types';
+import { Notification } from '@/types';
 
 const DEFAULT_CONFIG = {
   Icon: Bell,

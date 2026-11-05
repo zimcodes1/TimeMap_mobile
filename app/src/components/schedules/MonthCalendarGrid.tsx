@@ -9,7 +9,7 @@ import {
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import { colors } from "@/theme/colors";
 import { Text } from "@/components/common/Text";
-import { Session, SessionStatus } from "@/types";
+import { Session } from "@/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -204,7 +204,7 @@ export const MonthCalendarGrid: React.FC<MonthCalendarGridProps> = ({
         setViewMonth(selM);
       }
     }
-  }, [selectedDate]);
+  }, [selectedDate, viewYear, viewMonth]);
 
   // Adjust if session boundaries change externally
   useEffect(() => {
