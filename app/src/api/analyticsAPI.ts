@@ -61,7 +61,7 @@ export const analyticsAPI = {
     if (params.courseId) queryParams['course_id'] = params.courseId;
     if (params.lecturerId) queryParams['lecturer_id'] = params.lecturerId;
 
-    let endpoint = '/analytics/class-rep/';
+    let endpoint = '/analytics/student/';
     if (role === 'lecturer') {
       endpoint = '/analytics/lecturer/';
     } else if (role === 'admin') {

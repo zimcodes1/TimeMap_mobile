@@ -4,7 +4,6 @@ import {
   TextInput as RNTextInput,
   TextInputProps as RNTextInputProps,
   StyleSheet,
-  Pressable,
 } from 'react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';

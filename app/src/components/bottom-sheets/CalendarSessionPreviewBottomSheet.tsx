@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { MapPin, Clock, User, ArrowRight } from 'lucide-react-native';
+import { MapPin, Clock, User, ArrowRight, Users } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Session, SessionStatus } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -45,6 +46,40 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
   session,
   onViewDetails,
 }) => {
+  const { user } = useAuth();
+  const isClassRep = Boolean(user?.isClassRep || user?.role === 'class_rep');
+  const isExam = Boolean(session?.isExam);
+
+  const isPast = useMemo(() => {
+    try {
+      if (!session?.date || !session?.endTime) return false;
+      const [year, month, day] = session.date.split('-').map(Number);
+      const [endH, endM] = session.endTime.split(':').map(Number);
+      if (!year || !month || !day || isNaN(endH)) return false;
+      const endDt = new Date(year, month - 1, day, endH, endM || 0, 0);
+      return endDt.getTime() < Date.now();
+    } catch {
+      return false;
+    }
+  }, [session?.date, session?.endTime]);
+
+  const isOngoing = useMemo(() => {
+    try {
+      if (!session?.date || !session?.startTime || !session?.endTime) return false;
+      if (session.status === 'cancelled') return false;
+      const [year, month, day] = session.date.split('-').map(Number);
+      const [startH, startM] = session.startTime.split(':').map(Number);
+      const [endH, endM] = session.endTime.split(':').map(Number);
+      if (!year || !month || !day || isNaN(startH) || isNaN(endH)) return false;
+      const now = Date.now();
+      const startDt = new Date(year, month - 1, day, startH, startM || 0, 0).getTime();
+      const endDt = new Date(year, month - 1, day, endH, endM || 0, 0).getTime();
+      return now >= startDt && now <= endDt;
+    } catch {
+      return false;
+    }
+  }, [session?.date, session?.startTime, session?.endTime, session?.status]);
+
   if (!session) return null;
 
   return (
@@ -52,12 +87,33 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
       visible={visible}
       onClose={onClose}
       title={session.course.code}
-      subtitle={session.course.title}
+      subtitle={isExam ? `${session.course.title} · Examination` : session.course.title}
     >
       <View style={styles.badgeRow}>
-        <Badge variant={STATUS_VARIANT[session.status]}>
-          {STATUS_LABEL[session.status]}
-        </Badge>
+        {isExam ? (
+          <Badge variant="info" style={styles.examBadge}>
+            {session.examType ? `Exam · ${session.examType.toUpperCase()}` : 'Examination Sitting'}
+          </Badge>
+        ) : (
+          <>
+            {isOngoing ? (
+              <Badge variant="warning">Ongoing</Badge>
+            ) : isClassRep && session.reportWindowOpen && !session.reportId ? (
+              <Badge variant="warning">Window Open</Badge>
+            ) : isPast ? (
+              <Badge variant="secondary">Past</Badge>
+            ) : null}
+            {session.status === 'cancelled' ? (
+              <Badge variant="danger">Cancelled</Badge>
+            ) : session.reportId ? (
+              <Badge variant="primary">Reported</Badge>
+            ) : !isPast && !isOngoing ? (
+              <Badge variant={STATUS_VARIANT[session.status]}>
+                {STATUS_LABEL[session.status]}
+              </Badge>
+            ) : null}
+          </>
+        )}
       </View>
 
       <View style={styles.infoList}>
@@ -69,6 +125,7 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
             <Text style={styles.infoLabel}>Time</Text>
             <Text style={styles.infoValue}>
               {session.startTime} – {session.endTime}
+              {isExam && session.durationMinutes ? ` (${session.durationMinutes} mins)` : ''}
             </Text>
           </View>
         </View>
@@ -83,10 +140,31 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
             {session.venue.building ? (
               <Text style={styles.infoSubValue}>{session.venue.building}</Text>
             ) : null}
+            {isExam && session.venuesList && session.venuesList.length > 1 ? (
+              <View style={styles.venuesListWrapper}>
+                {session.venuesList.map((v, i) => (
+                  <Text key={`${v.venueName}-${i}`} style={styles.venueItemText}>
+                    • {v.venueName} {v.turns && v.turns > 1 ? `(${v.turns} turns)` : ''} {v.students ? `[${v.students} students]` : ''}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
           </View>
         </View>
 
-        {session.lecturers.length > 0 ? (
+        {isExam && session.candidatesCount ? (
+          <View style={styles.infoRow}>
+            <View style={styles.infoIcon}>
+              <Users size={15} color={colors.textSubtle} />
+            </View>
+            <View>
+              <Text style={styles.infoLabel}>Registered Candidates</Text>
+              <Text style={styles.infoValue}>{session.candidatesCount} Students</Text>
+            </View>
+          </View>
+        ) : null}
+
+        {!isExam && session.lecturers.length > 0 ? (
           <View style={styles.infoRow}>
             <View style={styles.infoIcon}>
               <User size={15} color={colors.textSubtle} />
@@ -101,15 +179,26 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
         ) : null}
       </View>
 
-      <Button
-        variant="primary"
-        size="lg"
-        rightIcon={<ArrowRight size={18} color="#fff" />}
-        onPress={() => { onClose(); setTimeout(onViewDetails, 180); }}
-        style={styles.detailsBtn}
-      >
-        View Full Details
-      </Button>
+      {isExam ? (
+        <Button
+          variant="secondary"
+          size="lg"
+          onPress={onClose}
+          style={styles.detailsBtn}
+        >
+          Dismiss
+        </Button>
+      ) : (
+        <Button
+          variant="primary"
+          size="lg"
+          rightIcon={<ArrowRight size={18} color="#fff" />}
+          onPress={() => { onClose(); setTimeout(onViewDetails, 180); }}
+          style={styles.detailsBtn}
+        >
+          View Full Details
+        </Button>
+      )}
     </BottomSheet>
   );
 };
@@ -119,6 +208,19 @@ export const CalendarSessionPreviewBottomSheet: React.FC<CalendarSessionPreviewB
 const styles = StyleSheet.create({
   badgeRow: {
     marginBottom: 16,
+  },
+  examBadge: {
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    borderColor: 'rgba(139, 92, 246, 0.35)',
+  },
+  venuesListWrapper: {
+    marginTop: 6,
+    gap: 3,
+  },
+  venueItemText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontWeight: '500',
   },
   infoList: {
     gap: 14,

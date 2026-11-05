@@ -15,7 +15,7 @@ function isMobileRoleAllowed(user: any): boolean {
 
 export default function IndexRoute() {
   const router = useRouter();
-  const { isAuthenticated, user, requiresPasswordReset, isLoading } = useAuth();
+  const { isAuthenticated, user, requiresPasswordReset, hasEverLoggedIn, isLoading } = useAuth();
 
   useEffect(() => {
     if (isLoading) return;
@@ -27,12 +27,19 @@ export default function IndexRoute() {
       } else {
         router.replace('/(tabs)');
       }
+    } else if (hasEverLoggedIn) {
+      // User has logged in before and hasn't logged out -> skip Welcome screen directly to Login
+      router.replace('/(auth)/login');
     }
-  }, [isAuthenticated, user, requiresPasswordReset, isLoading, router]);
+  }, [isAuthenticated, user, requiresPasswordReset, hasEverLoggedIn, isLoading, router]);
 
   const handleLoginPress = () => {
-    router.replace('/(auth)/login');
+    router.push('/(auth)/login');
   };
+
+  if (isLoading || isAuthenticated || hasEverLoggedIn) {
+    return null;
+  }
 
   return <WelcomeScreen onLoginPress={handleLoginPress} />;
 }

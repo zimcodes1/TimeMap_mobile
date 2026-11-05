@@ -42,6 +42,57 @@ export interface Session {
   reportWindowOpen: boolean;
   reportWindowExpiresAt?: string; // ISO datetime
   reportId?: string;              // if a report already exists for this session
+  timetableEntryId?: string;
+
+  // Exam schedule fields
+  isExam?: boolean;
+  examType?: 'written' | 'cbt' | 'lab_practical';
+  durationMinutes?: number;
+  venuesList?: {
+    venueId?: string | number;
+    venueName: string;
+    students?: number;
+    capacity?: number;
+    turns?: number;
+  }[];
+  candidatesCount?: number;
+}
+
+// Academic Sessions & Semesters
+
+export interface Semester {
+  id: string;
+  sessionId: string;
+  sessionLabel?: string;
+  schoolId?: string;
+  schoolName?: string;
+  name: string;
+  displayName: string;
+  startDate: string;
+  endDate: string;
+  durationType?: string;
+  durationValue?: number;
+  lectureStartDate?: string;
+  lectureEndDate?: string;
+  examStartDate?: string;
+  examEndDate?: string;
+  isActive: boolean;
+  createdByName?: string;
+  createdAt?: string;
+}
+
+export interface AcademicSession {
+  id: string;
+  schoolId: string;
+  schoolName?: string;
+  schoolCode?: string;
+  label: string;
+  startDate: string;
+  endDate: string;
+  maxSemesters?: number;
+  isCurrent: boolean;
+  semesters?: Semester[];
+  createdAt?: string;
 }
 
 //Reports
@@ -64,13 +115,29 @@ export interface Report {
 
 export type NotificationType =
   | 'schedule_change'
-  | 'report_submitted'
-  | 'report_responded'
+  | 'session_shifted'
+  | 'session_cancelled'
+  | 'session_postponed'
+  | 'timetable_published'
+  | 'lecture_reminder'
+  | 'exam_published'
+  | 'exam_rescheduled'
+  | 'exam_cancelled'
+  | 'exam_invigilator_assigned'
+  | 'exam_reminder'
+  | 'event_scheduled'
+  | 'event_cancelled'
+  | 'event_postponed'
+  | 'reporting_window_open'
   | 'window_reminder'
   | 'session_unreported'
+  | 'report_submitted'
+  | 'report_responded'
+  | 'discrepancy_submitted'
   | 'discrepancy_approved'
   | 'discrepancy_rejected'
-  | 'general';
+  | 'general'
+  | (string & {});
 
 export interface Notification {
   id: string;
@@ -79,7 +146,7 @@ export interface Notification {
   body: string;
   isRead: boolean;
   createdAt: string;          // ISO datetime
-  relatedModel?: 'LectureSession' | 'ClassRepReport' | 'DiscrepancyRequest';
+  relatedModel?: 'LectureSession' | 'ClassRepReport' | 'DiscrepancyRequest' | 'ExamSitting' | 'TimetableEntry' | 'ExamOptimizerRun' | 'TimetableGenerationRun';
   relatedId?: string;
 }
 

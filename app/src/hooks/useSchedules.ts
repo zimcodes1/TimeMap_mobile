@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { schedulesAPI, GetSessionsParams } from '@/api/schedulesAPI';
 import { localDB } from '@/lib/storage/db';
 import { Session, SessionStatus } from '@/types';
@@ -6,6 +6,26 @@ import { useAuth } from '@/context/AuthContext';
 import { useState, useCallback, useMemo } from 'react';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+
+function filterLocalSessions(sessions: Session[], params: GetSessionsParams): Session[] {
+  let result = sessions;
+  if (params.startDate) {
+    result = result.filter((s) => s.date >= params.startDate!);
+  }
+  if (params.endDate) {
+    result = result.filter((s) => s.date <= params.endDate!);
+  }
+  if (params.date) {
+    result = result.filter((s) => s.date === params.date!);
+  }
+  if (params.status) {
+    result = result.filter((s) => s.status === params.status);
+  }
+  if (params.courseId) {
+    result = result.filter((s) => s.course.id === params.courseId);
+  }
+  return result;
+}
 
 export function useAllSchedules(params: GetSessionsParams = {}) {
   const { user } = useAuth();
@@ -23,11 +43,16 @@ export function useAllSchedules(params: GetSessionsParams = {}) {
       // 1. Check local SQLite cache first
       const cachedSessions = await localDB.getSessions();
       const lastSync = await localDB.getLastSessionsSyncTime();
+      const isStudentUser = Boolean(
+        user && (user.role === 'student' || user.role === 'class_rep' || user.isClassRep)
+      );
+      const hasExamsInCache = cachedSessions?.some((s) => s.isExam);
       const isFresh = Boolean(
         cachedSessions &&
         cachedSessions.length > 0 &&
         lastSync &&
-        Date.now() - lastSync < ONE_HOUR_MS
+        Date.now() - lastSync < ONE_HOUR_MS &&
+        (!isStudentUser || hasExamsInCache)
       );
 
       // If cache is fresh and no explicit filter override is requested, serve from SQLite instantly
@@ -38,8 +63,23 @@ export function useAllSchedules(params: GetSessionsParams = {}) {
 
       // 2. Otherwise fetch live data from backend
       try {
-        const liveSessions = await schedulesAPI.getSessions(params);
-        if (Object.keys(params).length === 0) {
+        let liveSessions = await schedulesAPI.getSessions(params);
+
+        // For students, also fetch published exam sittings for viewing
+        if (isStudentUser) {
+          try {
+            const liveExams = await schedulesAPI.getExamSchedules(params);
+            if (liveExams && liveExams.length > 0) {
+              liveSessions = [...liveSessions, ...liveExams].sort(
+                (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)
+              );
+            }
+          } catch (e) {
+            console.warn('[useAllSchedules] Failed to fetch student exams:', e);
+          }
+        }
+
+        if (Object.keys(params).length === 0 || (params.startDate && params.endDate)) {
           await localDB.saveSessions(liveSessions);
         }
         setIsOffline(false);
@@ -48,7 +88,7 @@ export function useAllSchedules(params: GetSessionsParams = {}) {
         console.warn('[useAllSchedules] Network fetch failed, checking SQLite cache:', err);
         if (cachedSessions && cachedSessions.length > 0) {
           setIsOffline(true);
-          return cachedSessions;
+          return filterLocalSessions(cachedSessions, params);
         }
         throw err;
       }
@@ -60,8 +100,23 @@ export function useAllSchedules(params: GetSessionsParams = {}) {
 
   const forceRefetch = useCallback(async () => {
     try {
-      const liveSessions = await schedulesAPI.getSessions(params);
-      if (Object.keys(params).length === 0) {
+      let liveSessions = await schedulesAPI.getSessions(params);
+      const isStudentUser = Boolean(
+        user && (user.role === 'student' || user.role === 'class_rep' || user.isClassRep)
+      );
+      if (isStudentUser) {
+        try {
+          const liveExams = await schedulesAPI.getExamSchedules(params);
+          if (liveExams && liveExams.length > 0) {
+            liveSessions = [...liveSessions, ...liveExams].sort(
+              (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)
+            );
+          }
+        } catch (e) {
+          console.warn('[useAllSchedules] Failed to fetch student exams in refetch:', e);
+        }
+      }
+      if (Object.keys(params).length === 0 || (params.startDate && params.endDate)) {
         await localDB.saveSessions(liveSessions);
       }
       setIsOffline(false);
@@ -74,7 +129,7 @@ export function useAllSchedules(params: GetSessionsParams = {}) {
       }
       return query.refetch();
     }
-  }, [params, query]);
+  }, [params, query, user]);
 
   return {
     sessions: query.data ?? [],

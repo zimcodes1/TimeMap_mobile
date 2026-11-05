@@ -2,11 +2,9 @@ import React from 'react';
 import {
   View,
   StyleSheet,
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
 } from 'react-native';
-import { CalendarX } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { Session } from '@/types';

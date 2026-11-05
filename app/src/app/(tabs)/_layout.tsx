@@ -10,6 +10,8 @@ import {
 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
+import { useAuth } from '@/context/AuthContext';
+import { useReportsBadgeCount } from '@/hooks/useReports';
 
 // ─── Custom tab badge (notification count) ────────────────────────────────────
 
@@ -44,6 +46,10 @@ const TabIcon: React.FC<TabIconProps> = ({ Icon, focused, badge }) => (
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 export default function TabsLayout() {
+  const { user } = useAuth();
+  const canAccessReports = Boolean(user?.isClassRep || user?.role === 'class_rep' || user?.role === 'lecturer');
+  const reportsBadgeCount = useReportsBadgeCount();
+
   return (
     <Tabs
       screenOptions={{
@@ -77,8 +83,13 @@ export default function TabsLayout() {
         name="reports"
         options={{
           title: 'Reports',
+          href: canAccessReports ? '/(tabs)/reports' : null,
           tabBarIcon: ({ focused }) => (
-            <TabIcon Icon={FileText} focused={focused} />
+            <TabIcon
+              Icon={FileText}
+              focused={focused}
+              badge={reportsBadgeCount > 0 ? reportsBadgeCount : undefined}
+            />
           ),
         }}
       />

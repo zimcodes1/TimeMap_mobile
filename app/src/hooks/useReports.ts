@@ -1,16 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { reportingAPI, SubmitReportPayload, RespondReportPayload } from '@/api/reportingAPI';
+import { isSessionReportWindowOpen } from '@/api/schedulesAPI';
 import { localDB } from '@/lib/storage/db';
-import { Report } from '@/types';
-import { useState } from 'react';
+import { Report, Session } from '@/types';
+import { useAuth } from '@/context/AuthContext';
+import { useAllSchedules } from '@/hooks/useSchedules';
+import { useState, useMemo } from 'react';
 
 const REPORTS_CACHE_KEY = 'reports_list_cache';
 
 export function useReports() {
+  const { user } = useAuth();
+  const isClassRep = Boolean(user?.isClassRep || user?.role === 'class_rep' || user?.role === 'lecturer');
   const [isOffline, setIsOffline] = useState(false);
 
   const query = useQuery<Report[]>({
     queryKey: ['reports'],
+    enabled: isClassRep,
     queryFn: async () => {
       try {
         const liveReports = await reportingAPI.getReports();
@@ -41,6 +47,37 @@ export function useReports() {
   };
 }
 
+export function useToReportCount(): number {
+  const { user } = useAuth();
+  const isClassRep = Boolean(user?.isClassRep || user?.role === 'class_rep');
+  const { allSessions } = useAllSchedules();
+
+  return useMemo(() => {
+    if (!isClassRep || !allSessions || allSessions.length === 0) return 0;
+    return allSessions.filter((s) => isSessionReportWindowOpen(s) && !s.reportId).length;
+  }, [isClassRep, allSessions]);
+}
+
+export function useReportsBadgeCount(): number {
+  const { user } = useAuth();
+  const isClassRep = Boolean(user?.isClassRep || user?.role === 'class_rep');
+  const isLecturer = user?.role === 'lecturer';
+  const { allSessions } = useAllSchedules();
+  const { reports } = useReports();
+
+  return useMemo(() => {
+    if (isClassRep) {
+      if (!allSessions || allSessions.length === 0) return 0;
+      return allSessions.filter((s) => isSessionReportWindowOpen(s) && !s.reportId).length;
+    }
+    if (isLecturer) {
+      if (!reports || reports.length === 0) return 0;
+      return reports.filter((r) => r.status === 'pending').length;
+    }
+    return 0;
+  }, [isClassRep, isLecturer, allSessions, reports]);
+}
+
 export function useSubmitReport() {
   const queryClient = useQueryClient();
 
@@ -48,7 +85,47 @@ export function useSubmitReport() {
     mutationFn: async (payload: SubmitReportPayload) => {
       return await reportingAPI.submitReport(payload);
     },
-    onSuccess: () => {
+    onSuccess: async (report, variables) => {
+      const sessionId = String(variables.lectureSession);
+      const reportId = String(report.id);
+      const held = variables.held;
+
+      // 1. Mark session as reported in SQLite store
+      await localDB.markSessionAsReported(sessionId, reportId, held);
+
+      // 2. Optimistically update all session queries in React Query cache
+      queryClient.setQueriesData<Session[]>(
+        { queryKey: ['scoped_sessions'] },
+        (old) => {
+          if (!old || !Array.isArray(old)) return old;
+          return old.map((s) => {
+            if (String(s.id) === sessionId) {
+              return {
+                ...s,
+                reportId,
+                reportWindowOpen: false,
+                status: (held ? 'held' : 'not_held') as Session['status'],
+              };
+            }
+            return s;
+          });
+        }
+      );
+
+      queryClient.setQueryData<Session>(
+        ['session_detail', sessionId],
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            reportId,
+            reportWindowOpen: false,
+            status: (held ? 'held' : 'not_held') as Session['status'],
+          };
+        }
+      );
+
+      // 3. Invalidate queries to ensure complete backend alignment
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
       queryClient.invalidateQueries({ queryKey: ['scoped_sessions'] });

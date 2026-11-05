@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   },
   textareaDisabled: {
     backgroundColor: colors.surface,
-    borderColor: colors.borderSubtle,
+    borderColor: colors.border,
     opacity: 0.6,
   },
   errorText: {

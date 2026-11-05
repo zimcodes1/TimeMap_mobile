@@ -42,6 +42,39 @@ export interface PasswordResetPayload {
   new_password: string;
 }
 
+export interface StudentSignupPayload {
+  matric_number: string;
+  full_name: string;
+  email: string;
+  faculty?: number;
+  department: number;
+  program: number;
+  level: number;
+  password: string;
+}
+
+export interface HierarchyOption {
+  id: number;
+  name: string;
+  code: string;
+}
+
+export interface DepartmentOption extends HierarchyOption {
+  faculty_id: number;
+}
+
+export interface ProgramOption extends HierarchyOption {
+  department_id: number;
+  max_level: number;
+  is_default?: boolean;
+}
+
+export interface RegistrationOptionsResponse {
+  faculties: HierarchyOption[];
+  departments: DepartmentOption[];
+  programs: ProgramOption[];
+}
+
 export interface PasswordResetResponse {
   detail: string;
 }
@@ -88,6 +121,29 @@ export const authAPI = {
     return apiClient<LoginResponse>('/auth/login/', {
       method: 'POST',
       body: JSON.stringify(payload),
+      skipAuth: true,
+    });
+  },
+
+  /**
+   * Register a new student account
+   * POST /api/auth/signup/
+   */
+  async signup(payload: StudentSignupPayload): Promise<LoginResponse> {
+    return apiClient<LoginResponse>('/auth/signup/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      skipAuth: true,
+    });
+  },
+
+  /**
+   * Fetch faculties, departments, and programs for registration
+   * GET /api/auth/registration-options/
+   */
+  async getRegistrationOptions(): Promise<RegistrationOptionsResponse> {
+    return apiClient<RegistrationOptionsResponse>('/auth/registration-options/', {
+      method: 'GET',
       skipAuth: true,
     });
   },

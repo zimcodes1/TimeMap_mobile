@@ -3,35 +3,61 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import {
   Bell,
   CalendarClock,
+  Calendar,
+  CalendarX,
   FileText,
   MessageCircle,
   Clock,
   ShieldCheck,
   ShieldX,
   Info,
+  BookOpen,
+  GraduationCap,
 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
-import { Notification, NotificationType } from '@/types';
+import { Notification } from '@/types';
 
-// ─── Type → icon + accent mapping ────────────────────────────────────────────
-
-const TYPE_CONFIG: Record<
-  NotificationType,
-  { Icon: React.ElementType; accent: string; label: string }
-> = {
-  schedule_change:       { Icon: CalendarClock,  accent: colors.info,    label: 'Schedule' },
-  report_submitted:      { Icon: FileText,        accent: colors.primary, label: 'Report' },
-  report_responded:      { Icon: MessageCircle,   accent: colors.primary, label: 'Response' },
-  window_reminder:       { Icon: Clock,           accent: colors.warning, label: 'Reminder' },
-  session_unreported:    { Icon: Bell,            accent: colors.danger,  label: 'Alert' },
-  discrepancy_approved:  { Icon: ShieldCheck,     accent: colors.primary, label: 'Approved' },
-  discrepancy_rejected:  { Icon: ShieldX,         accent: colors.danger,  label: 'Rejected' },
-  general:               { Icon: Info,            accent: colors.textSubtle, label: 'Info' },
+const DEFAULT_CONFIG = {
+  Icon: Bell,
+  accent: colors.primary,
+  label: 'Notification',
 };
 
-function formatRelativeTime(isoString: string): string {
-  const diff = Date.now() - new Date(isoString).getTime();
+const TYPE_CONFIG: Record<
+  string,
+  { Icon: React.ElementType; accent: string; label: string }
+> = {
+  schedule_change:           { Icon: CalendarClock,   accent: colors.info,       label: 'Schedule' },
+  session_shifted:           { Icon: CalendarClock,   accent: colors.info,       label: 'Shifted' },
+  session_cancelled:         { Icon: CalendarX,       accent: colors.danger,     label: 'Cancelled' },
+  session_postponed:         { Icon: CalendarClock,   accent: colors.warning,    label: 'Postponed' },
+  timetable_published:       { Icon: BookOpen,        accent: colors.primary,    label: 'Timetable' },
+  lecture_reminder:          { Icon: Clock,           accent: colors.info,       label: 'Reminder' },
+  exam_published:            { Icon: GraduationCap,   accent: colors.primary,    label: 'Exam Schedule' },
+  exam_rescheduled:          { Icon: CalendarClock,   accent: colors.info,       label: 'Exam Shifted' },
+  exam_cancelled:            { Icon: CalendarX,       accent: colors.danger,     label: 'Exam Cancelled' },
+  exam_invigilator_assigned: { Icon: ShieldCheck,     accent: colors.primary,    label: 'Invigilation' },
+  exam_reminder:             { Icon: Clock,           accent: colors.warning,    label: 'Exam Alert' },
+  event_scheduled:           { Icon: Calendar,        accent: colors.info,       label: 'Event' },
+  event_cancelled:           { Icon: CalendarX,       accent: colors.danger,     label: 'Event Cancelled' },
+  event_postponed:           { Icon: CalendarClock,   accent: colors.warning,    label: 'Event Postponed' },
+  reporting_window_open:     { Icon: Clock,           accent: colors.warning,    label: 'Window Open' },
+  window_reminder:           { Icon: Clock,           accent: colors.warning,    label: 'Reminder' },
+  session_unreported:        { Icon: Bell,            accent: colors.danger,     label: 'Alert' },
+  report_submitted:          { Icon: FileText,        accent: colors.primary,    label: 'Report' },
+  report_responded:          { Icon: MessageCircle,   accent: colors.primary,    label: 'Response' },
+  discrepancy_submitted:     { Icon: FileText,        accent: colors.warning,    label: 'Discrepancy' },
+  discrepancy_approved:      { Icon: ShieldCheck,     accent: colors.primary,    label: 'Approved' },
+  discrepancy_rejected:      { Icon: ShieldX,         accent: colors.danger,     label: 'Rejected' },
+  general:                   { Icon: Info,            accent: colors.textSubtle, label: 'Info' },
+};
+
+function formatRelativeTime(isoString?: string): string {
+  if (!isoString) return '';
+  const time = new Date(isoString).getTime();
+  if (isNaN(time)) return '';
+  const diff = Math.max(0, Date.now() - time);
   const mins = Math.floor(diff / 60_000);
   if (mins < 2) return 'Just now';
   if (mins < 60) return `${mins}m ago`;
@@ -53,8 +79,10 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
   notification,
   onPress,
 }) => {
-  const config = TYPE_CONFIG[notification.type];
-  const { Icon, accent, label } = config;
+  const config = (notification?.type && TYPE_CONFIG[notification.type]) || DEFAULT_CONFIG;
+  const Icon = config.Icon || Bell;
+  const accent = config.accent || colors.primary;
+  const label = config.label || 'Notification';
 
   return (
     <Pressable

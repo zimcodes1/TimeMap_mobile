@@ -9,11 +9,13 @@ import {
   Clock,
   MoreVertical,
   User,
+  GraduationCap,
 } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Session, SessionStatus } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -37,6 +39,10 @@ export interface SessionCardProps {
   onMorePress?: () => void;
   /** Highlight the card with a green left accent (e.g. current/upcoming session) */
   isHighlighted?: boolean;
+  /** Explicit override for lecturer role. If omitted, resolved from useAuth() */
+  isLecturer?: boolean;
+  /** Explicit override for class rep role. If omitted, resolved from useAuth() */
+  isClassRep?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -46,26 +52,108 @@ export const SessionCard: React.FC<SessionCardProps> = ({
   onPress,
   onMorePress,
   isHighlighted = false,
+  isLecturer,
+  isClassRep,
 }) => {
+  const { user } = useAuth();
+  const effectiveIsClassRep = isClassRep ?? Boolean(user?.isClassRep || user?.role === 'class_rep');
   const { label, variant } = STATUS_CONFIG[session.status];
   const lecturerNames = session.lecturers.map((l) => l.name).join(', ');
+
+  const isPast = React.useMemo(() => {
+    try {
+      if (!session.date || !session.endTime) return false;
+      const [year, month, day] = session.date.split('-').map(Number);
+      const [endH, endM] = session.endTime.split(':').map(Number);
+      if (!year || !month || !day || isNaN(endH)) return false;
+      const endDt = new Date(year, month - 1, day, endH, endM || 0, 0);
+      return endDt.getTime() < Date.now();
+    } catch {
+      return false;
+    }
+  }, [session.date, session.endTime]);
+
+  const isOngoing = React.useMemo(() => {
+    try {
+      if (!session.date || !session.startTime || !session.endTime) return false;
+      if (session.status === 'cancelled') return false;
+      const [year, month, day] = session.date.split('-').map(Number);
+      const [startH, startM] = session.startTime.split(':').map(Number);
+      const [endH, endM] = session.endTime.split(':').map(Number);
+      if (!year || !month || !day || isNaN(startH) || isNaN(endH)) return false;
+      const now = Date.now();
+      const startDt = new Date(year, month - 1, day, startH, startM || 0, 0).getTime();
+      const endDt = new Date(year, month - 1, day, endH, endM || 0, 0).getTime();
+      return now >= startDt && now <= endDt;
+    } catch {
+      return false;
+    }
+  }, [session.date, session.startTime, session.endTime, session.status]);
+
+  const isExam = Boolean(session.isExam);
+  const showAccent = isExam || isOngoing || isPast || isHighlighted;
+
+  const accentColor = isExam
+    ? '#8B5CF6'
+    : isOngoing
+    ? colors.warning
+    : isPast
+    ? colors.textSubtle
+    : colors.primary;
+
+  const cardBorderColor = isExam
+    ? 'rgba(139, 92, 246, 0.4)'
+    : isOngoing
+    ? 'rgba(245, 158, 11, 0.5)'
+    : isPast
+    ? colors.border
+    : isHighlighted
+    ? colors.primary
+    : colors.border;
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.card, isHighlighted && styles.highlighted, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.card,
+        { borderColor: cardBorderColor },
+        pressed && styles.pressed,
+      ]}
     >
       {/* Left accent bar */}
-      {isHighlighted && <View style={styles.accentBar} />}
+      {showAccent ? (
+        <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
+      ) : null}
 
       <View style={styles.body}>
         {/* Top row — course code + badge + overflow */}
         <View style={styles.topRow}>
           <View style={styles.courseInfo}>
             <Text style={styles.courseCode}>{session.course.code}</Text>
-            <Badge variant={variant} style={styles.badge}>{label}</Badge>
+            {isExam ? (
+              <Badge variant="info" style={styles.examBadge}>
+                {session.examType ? `Exam · ${session.examType.toUpperCase()}` : 'Exam'}
+              </Badge>
+            ) : (
+              <>
+                {isOngoing ? (
+                  <Badge variant="warning" style={styles.badge}>Ongoing</Badge>
+                ) : effectiveIsClassRep && session.reportWindowOpen && !session.reportId ? (
+                  <Badge variant="warning" style={styles.badge}>Window Open</Badge>
+                ) : isPast ? (
+                  <Badge variant="secondary" style={styles.badge}>Past</Badge>
+                ) : null}
+                {session.status === 'cancelled' ? (
+                  <Badge variant="danger" style={styles.badge}>Cancelled</Badge>
+                ) : session.reportId ? (
+                  <Badge variant="primary" style={styles.badge}>Reported</Badge>
+                ) : !isPast && !isOngoing ? (
+                  <Badge variant={variant} style={styles.badge}>{label}</Badge>
+                ) : null}
+              </>
+            )}
           </View>
-          {onMorePress ? (
+          {onMorePress && !isExam ? (
             <Pressable onPress={onMorePress} hitSlop={12} style={styles.moreBtn}>
               <MoreVertical size={18} color={colors.textMuted} />
             </Pressable>
@@ -77,7 +165,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
           {session.course.title}
         </Text>
 
-        {/* Meta row — time + venue + lecturer */}
+        {/* Meta row — time + venue + lecturer/exam info */}
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>
             <Clock size={13} color={colors.textSubtle} />
@@ -93,7 +181,12 @@ export const SessionCard: React.FC<SessionCardProps> = ({
             </Text>
           </View>
 
-          {lecturerNames ? (
+          {isExam && session.durationMinutes ? (
+            <View style={styles.metaItem}>
+              <GraduationCap size={13} color="#8B5CF6" />
+              <Text style={[styles.metaText, { color: '#A78BFA' }]}>{session.durationMinutes} mins</Text>
+            </View>
+          ) : lecturerNames ? (
             <View style={styles.metaItem}>
               <User size={13} color={colors.textSubtle} />
               <Text style={styles.metaText} numberOfLines={1}>
@@ -103,14 +196,14 @@ export const SessionCard: React.FC<SessionCardProps> = ({
           ) : null}
         </View>
 
-        {/* Reporting window indicator */}
-        {session.reportWindowOpen && !session.reportId ? (
+        {/* Reporting window indicator (lectures only, Class Reps only) */}
+        {!isExam && effectiveIsClassRep && session.reportWindowOpen && !session.reportId ? (
           <View style={styles.windowBanner}>
             <Text style={styles.windowText}>⏳ Reporting window open</Text>
           </View>
-        ) : session.reportId ? (
+        ) : !isExam && effectiveIsClassRep && session.reportId ? (
           <View style={[styles.windowBanner, styles.reportedBanner]}>
-            <Text style={styles.reportedText}>✓ Report submitted</Text>
+            <Text style={styles.reportedText}>✓ Reported</Text>
           </View>
         ) : null}
       </View>
@@ -165,6 +258,11 @@ const styles = StyleSheet.create({
   },
   badge: {
     marginLeft: 6,
+  },
+  examBadge: {
+    marginLeft: 6,
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    borderColor: 'rgba(139, 92, 246, 0.35)',
   },
   moreBtn: {
     padding: 4,

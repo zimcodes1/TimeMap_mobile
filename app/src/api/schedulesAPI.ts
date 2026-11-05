@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { Session, SessionStatus } from '@/types';
+import { Session, SessionStatus, AcademicSession, Semester } from '@/types';
 
 export interface GetSessionsParams {
   date?: string;            // YYYY-MM-DD
@@ -7,6 +7,126 @@ export interface GetSessionsParams {
   endDate?: string;         // YYYY-MM-DD
   status?: SessionStatus;
   courseId?: string;
+}
+
+export function isSessionReportWindowOpen(session: {
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  reportId?: string;
+  reportWindowOpen?: boolean;
+}): boolean {
+  if (session.reportId) return false;
+  if (!session.date || !session.startTime || !session.endTime) {
+    return Boolean(session.reportWindowOpen);
+  }
+  try {
+    const now = new Date();
+    const [startH, startM] = session.startTime.split(':').map(Number);
+    const [endH, endM] = session.endTime.split(':').map(Number);
+    const [year, month, day] = session.date.split('-').map(Number);
+    if (!year || !month || !day || isNaN(startH) || isNaN(endH)) {
+      return Boolean(session.reportWindowOpen);
+    }
+    const startDt = new Date(year, month - 1, day, startH, startM, 0);
+    const endDt = new Date(year, month - 1, day, endH, endM, 0);
+    const expiryDt = new Date(endDt.getTime() + 30 * 60 * 1000);
+    return now >= startDt && now <= expiryDt;
+  } catch {
+    return Boolean(session.reportWindowOpen);
+  }
+}
+
+export function mapBackendToSemester(raw: any): Semester {
+  return {
+    id: String(raw.id),
+    sessionId: String(raw.session),
+    sessionLabel: raw.session_label,
+    schoolId: raw.school_id ? String(raw.school_id) : undefined,
+    schoolName: raw.school_name,
+    name: raw.name || '',
+    displayName: raw.display_name || (raw.name === 'first' ? 'First Semester' : 'Second Semester'),
+    startDate: raw.start_date || '',
+    endDate: raw.end_date || '',
+    durationType: raw.duration_type || 'fixed',
+    durationValue: raw.duration_value,
+    lectureStartDate: raw.lecture_start_date,
+    lectureEndDate: raw.lecture_end_date,
+    examStartDate: raw.exam_start_date,
+    examEndDate: raw.exam_end_date,
+    isActive: Boolean(raw.is_active),
+    createdByName: raw.created_by_name,
+    createdAt: raw.created_at,
+  };
+}
+
+export function mapBackendToAcademicSession(raw: any): AcademicSession {
+  return {
+    id: String(raw.id),
+    schoolId: String(raw.school || raw.school_id || ''),
+    schoolName: raw.school_name,
+    schoolCode: raw.school_code,
+    label: raw.label || '',
+    startDate: raw.start_date || '',
+    endDate: raw.end_date || '',
+    maxSemesters: raw.max_semesters ?? 2,
+    isCurrent: Boolean(raw.is_current),
+    semesters: Array.isArray(raw.semesters) ? raw.semesters.map(mapBackendToSemester) : [],
+    createdAt: raw.created_at,
+  };
+}
+
+/**
+ * Mapper function to transform raw backend Exam sitting response into mobile Session object
+ */
+export function mapBackendToExamSession(raw: any): Session {
+  const dateStr = raw.date || new Date().toISOString().split('T')[0];
+  const startTimeStr = raw.start_time ? raw.start_time.substring(0, 5) : '09:00';
+  const endTimeStr = raw.end_time ? raw.end_time.substring(0, 5) : '11:00';
+
+  const courseRaw = raw.course || {};
+  const venueRaw = raw.venue || {};
+
+  const venuesList = Array.isArray(raw.venues)
+    ? raw.venues.map((v: any) => ({
+        venueId: v.venue_id ? String(v.venue_id) : undefined,
+        venueName: v.venue_name || 'TBA',
+        students: v.students,
+        capacity: v.capacity,
+        turns: v.turns,
+      }))
+    : undefined;
+
+  return {
+    id: String(raw.id || `exam_${courseRaw.id || raw.id}_${dateStr}`),
+    course: {
+      id: String(courseRaw.id || raw.course_id || raw.id),
+      code: courseRaw.code || raw.course_code || 'EXAM',
+      title: courseRaw.title || raw.course_title || 'Examination Sitting',
+      department: courseRaw.department || raw.department_name || undefined,
+      level: courseRaw.level ? String(courseRaw.level) : undefined,
+    },
+    venue: {
+      id: String(venueRaw.id || raw.venue_id || 'v_exam'),
+      name: venueRaw.name || raw.venue_name || 'TBA',
+      building: venueRaw.building || raw.venue_building || undefined,
+    },
+    lecturers: [],
+    date: dateStr,
+    startTime: startTimeStr,
+    endTime: endTimeStr,
+    status: (raw.status as SessionStatus) || 'scheduled',
+    reportWindowOpen: false,
+    reportId: undefined,
+    timetableEntryId: raw.timetable_entry ? String(raw.timetable_entry) : undefined,
+
+    // Exam specific
+    isExam: true,
+    examType: raw.exam_type || 'written',
+    durationMinutes: raw.duration_minutes || 120,
+    venuesList,
+    candidatesCount: raw.student_count || raw.candidates_count,
+  };
 }
 
 /**
@@ -45,25 +165,13 @@ export function mapBackendToSession(raw: any): Session {
   }
 
   // Calculate reporting window: open during lecture and up to 30 minutes after lecture ends
-  let isWindowOpen = false;
-  if (!raw.report_id && dateStr && startTimeStr && endTimeStr) {
-    try {
-      const now = new Date();
-      const [startH, startM] = startTimeStr.split(':').map(Number);
-      const [endH, endM] = endTimeStr.split(':').map(Number);
-      const [year, month, day] = dateStr.split('-').map(Number);
-      if (year && month && day && !isNaN(startH) && !isNaN(endH)) {
-        const startDt = new Date(year, month - 1, day, startH, startM, 0);
-        const endDt = new Date(year, month - 1, day, endH, endM, 0);
-        const expiryDt = new Date(endDt.getTime() + 30 * 60 * 1000);
-        isWindowOpen = now >= startDt && now <= expiryDt;
-      }
-    } catch {
-      isWindowOpen = Boolean(raw.report_window_open);
-    }
-  } else if (raw.report_window_open !== undefined) {
-    isWindowOpen = Boolean(raw.report_window_open);
-  }
+  const isWindowOpen = isSessionReportWindowOpen({
+    date: dateStr,
+    startTime: startTimeStr,
+    endTime: endTimeStr,
+    reportId: raw.report_id ? String(raw.report_id) : undefined,
+    reportWindowOpen: raw.report_window_open,
+  });
 
   return {
     id: String(raw.id),
@@ -86,6 +194,7 @@ export function mapBackendToSession(raw: any): Session {
     reportWindowOpen: isWindowOpen,
     reportWindowExpiresAt: raw.report_window_expires_at,
     reportId: raw.report_id ? String(raw.report_id) : undefined,
+    timetableEntryId: raw.timetable_entry ? String(raw.timetable_entry) : (raw.timetable_entry_id ? String(raw.timetable_entry_id) : undefined),
   };
 }
 
@@ -130,6 +239,162 @@ export const schedulesAPI = {
     } catch (error) {
       console.warn(`[schedulesAPI] Failed to fetch session ${id}:`, error);
       throw error;
+    }
+  },
+
+  /**
+   * Shift a lecture session instance (venue, date, start_time, end_time)
+   */
+  async shiftSession(
+    sessionId: string,
+    payload: {
+      venue?: string | number;
+      session_date?: string;
+      session_start_time?: string;
+      session_end_time?: string;
+    }
+  ): Promise<Session> {
+    try {
+      const raw = await apiClient<any>(`/scheduling/sessions/${sessionId}/`, {
+        method: 'PATCH',
+        data: payload,
+      });
+      return mapBackendToSession(raw);
+    } catch (error) {
+      console.warn(`[schedulesAPI] Failed to shift session ${sessionId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Cancel a lecture session instance
+   */
+  async cancelSession(sessionId: string, reason?: string): Promise<Session> {
+    try {
+      const raw = await apiClient<any>(`/scheduling/sessions/${sessionId}/cancel/`, {
+        method: 'POST',
+        data: { reason: reason || 'Cancelled by lecturer' },
+      });
+      return mapBackendToSession(raw);
+    } catch (error) {
+      console.warn(`[schedulesAPI] Failed to cancel session ${sessionId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch academic sessions from GET /api/scheduling/academic-sessions/
+   */
+  async getAcademicSessions(params?: { is_current?: boolean }): Promise<AcademicSession[]> {
+    try {
+      const queryParams: Record<string, string> = {};
+      if (params?.is_current !== undefined) {
+        queryParams['is_current'] = String(params.is_current);
+      }
+      const rawSessions = await apiClient<any[]>('/scheduling/academic-sessions/', {
+        method: 'GET',
+        params: queryParams,
+      });
+
+      if (Array.isArray(rawSessions)) {
+        return rawSessions.map(mapBackendToAcademicSession);
+      }
+      return [];
+    } catch (error) {
+      console.warn('[schedulesAPI] Failed to fetch academic sessions:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch currently active academic session
+   */
+  async getCurrentAcademicSession(): Promise<AcademicSession | null> {
+    try {
+      const sessions = await this.getAcademicSessions({ is_current: true });
+      if (sessions.length > 0) {
+        return sessions[0];
+      }
+      // If none marked is_current, fetch all and return the first one
+      const allSessions = await this.getAcademicSessions();
+      return allSessions.length > 0 ? allSessions[0] : null;
+    } catch (error) {
+      console.warn('[schedulesAPI] Failed to get current academic session:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch semesters from GET /api/scheduling/semesters/
+   */
+  async getSemesters(params?: { is_active?: boolean; session?: string | number }): Promise<Semester[]> {
+    try {
+      const queryParams: Record<string, string> = {};
+      if (params?.is_active !== undefined) {
+        queryParams['is_active'] = String(params.is_active);
+      }
+      if (params?.session !== undefined) {
+        queryParams['session'] = String(params.session);
+      }
+      const raw = await apiClient<any[]>('/scheduling/semesters/', {
+        method: 'GET',
+        params: queryParams,
+      });
+
+      if (Array.isArray(raw)) {
+        return raw.map(mapBackendToSemester);
+      }
+      return [];
+    } catch (error) {
+      console.warn('[schedulesAPI] Failed to fetch semesters:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch currently active semester
+   */
+  async getActiveSemester(): Promise<Semester | null> {
+    try {
+      const activeSemesters = await this.getSemesters({ is_active: true });
+      if (activeSemesters.length > 0) {
+        return activeSemesters[0];
+      }
+      // Fallback: check current academic session
+      const currentSession = await this.getCurrentAcademicSession();
+      if (currentSession && currentSession.semesters && currentSession.semesters.length > 0) {
+        const found = currentSession.semesters.find((s) => s.isActive);
+        return found || currentSession.semesters[0];
+      }
+      return null;
+    } catch (error) {
+      console.warn('[schedulesAPI] Failed to get active semester:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch published exam schedules for the current student from GET /api/scheduling/exam-sittings/my-exams/
+   */
+  async getExamSchedules(params: GetSessionsParams = {}): Promise<Session[]> {
+    try {
+      const queryParams: Record<string, string> = {};
+      if (params.date) queryParams['date'] = params.date;
+      if (params.startDate) queryParams['start_date'] = params.startDate;
+      if (params.endDate) queryParams['end_date'] = params.endDate;
+
+      const rawExams = await apiClient<any[]>('/scheduling/exam-sittings/my-exams/', {
+        method: 'GET',
+        params: queryParams,
+      });
+
+      if (Array.isArray(rawExams)) {
+        return rawExams.map(mapBackendToExamSession);
+      }
+      return [];
+    } catch (error) {
+      console.warn('[schedulesAPI] Failed to fetch exam schedules:', error);
+      return [];
     }
   },
 };

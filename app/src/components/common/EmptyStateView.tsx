@@ -62,14 +62,21 @@ const VARIANT_CONFIG: Record<
   },
 };
 
+const DEFAULT_CONFIG = {
+  icon: AlertCircle,
+  title: 'No Data',
+  subtitle: '',
+  iconColor: colors.textSubtle,
+};
+
 export const EmptyStateView: React.FC<EmptyStateViewProps> = ({
   variant,
   title,
   subtitle,
   onRetry,
 }) => {
-  const config = VARIANT_CONFIG[variant];
-  const IconComponent = config.icon;
+  const config = VARIANT_CONFIG[variant] || DEFAULT_CONFIG;
+  const IconComponent = config.icon || AlertCircle;
   const displayTitle = title ?? config.title;
   const displaySubtitle = subtitle ?? config.subtitle;
 

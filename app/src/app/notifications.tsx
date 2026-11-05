@@ -7,6 +7,7 @@ export default function NotificationsRoute() {
 
   return (
     <NotificationsScreen
+      onBack={() => router.back()}
       onNavigateToSession={(sessionId) => router.push(`/sessions/${sessionId}` as any)}
       onNavigateToReport={(reportId) => router.push(`/reports/${reportId}` as any)}
     />

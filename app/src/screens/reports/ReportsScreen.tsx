@@ -7,7 +7,7 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FileText, Clock } from 'lucide-react-native';
+import { FileText, Clock, WifiOff } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { ReportCard } from '@/components/cards/ReportCard';
@@ -21,7 +21,8 @@ import { Report, Session } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useReports, useSubmitReport, useRespondReport } from '@/hooks/useReports';
 import { useTodaySessions } from '@/hooks/useSchedules';
-import { WifiOff } from 'lucide-react-native';
+import { isSessionReportWindowOpen } from '@/api/schedulesAPI';
+import Toast from 'react-native-toast-message';
 
 // ─── Segmented tabs ────────────────────────────────────────────────────────────
 
@@ -88,6 +89,18 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
     submitReportMutation.mutate(payload, {
       onSuccess: () => {
         setSubmitReportSession(null);
+        Toast.show({
+          type: 'success',
+          text1: 'Report Submitted',
+          text2: payload.held ? 'Session recorded as held.' : 'Session recorded as not held.',
+        });
+      },
+      onError: (err: any) => {
+        Toast.show({
+          type: 'error',
+          text1: 'Submission Failed',
+          text2: err?.message || 'Could not submit report. Please try again.',
+        });
       },
     });
   };
@@ -106,7 +119,7 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
   );
 
   const toReportSessions = useMemo(
-    () => allSessions.filter((s) => s.reportWindowOpen && !s.reportId),
+    () => allSessions.filter((s) => isSessionReportWindowOpen(s) && !s.reportId),
     [allSessions]
   );
 
@@ -125,7 +138,7 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
             sub="You can view session details from the Today or Calendar tab."
           />
           <Pressable onPress={() => setRoleHelpVisible(true)} style={styles.helpLink}>
-            <Text style={styles.helpLinkText}>Why can't I submit reports?</Text>
+            <Text style={styles.helpLinkText}>{"Why can't I submit reports?"}</Text>
           </Pressable>
           <RoleHelpBottomSheet visible={roleHelpVisible} onClose={() => setRoleHelpVisible(false)} />
         </View>
@@ -323,6 +336,7 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({ onNavigateToSessio
         onClose={() => setSubmitReportSession(null)}
         session={submitReportSession}
         onSubmit={handleSubmitReport}
+        isSubmitting={submitReportMutation.isPending}
       />
 
       <ReportDetailBottomSheet

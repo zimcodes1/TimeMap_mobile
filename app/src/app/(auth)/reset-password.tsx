@@ -48,6 +48,7 @@ export default function ResetPasswordRoute() {
       onSubmit={onSubmit}
       userIdentifier={displayIdentifier}
       onNavigateToLogin={() => router.replace('/(auth)/login')}
+      onNavigateBack={() => router.back()}
     />
   );
 }

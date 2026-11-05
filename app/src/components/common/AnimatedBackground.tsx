@@ -163,6 +163,8 @@ export const AnimatedBackground: React.FC = () => {
     counterSpinAnim: Animated.AnimatedInterpolation<string | number>
   ) => {
     return nodes.map((node, index) => {
+      if (!node || !node.Icon) return null;
+      const NodeIcon = node.Icon;
       const rad = (node.angleDeg * Math.PI) / 180;
       const x = radius * Math.cos(rad);
       const y = radius * Math.sin(rad);
@@ -184,7 +186,7 @@ export const AnimatedBackground: React.FC = () => {
               { transform: [{ rotate: counterSpinAnim }] },
             ]}
           >
-            <node.Icon
+            <NodeIcon
               size={18}
               color={node.highlight ? colors.primary : colors.textMuted}
             />

@@ -14,12 +14,20 @@ import { ScheduleAgendaList } from '@/components/schedules/ScheduleAgendaList';
 import { QuickAnalyticsCard } from '@/components/cards/QuickAnalyticsCard';
 import { SessionQuickActionsBottomSheet } from '@/components/bottom-sheets/SessionQuickActionsBottomSheet';
 import { SubmitReportBottomSheet } from '@/components/bottom-sheets/SubmitReportBottomSheet';
+import { ShiftLectureBottomSheet } from '@/components/bottom-sheets/ShiftLectureBottomSheet';
+import { CancelLectureBottomSheet } from '@/components/bottom-sheets/CancelLectureBottomSheet';
+import { CalendarSessionPreviewBottomSheet } from '@/components/bottom-sheets/CalendarSessionPreviewBottomSheet';
 import { Session, SessionStatus } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useTodaySessions } from '@/hooks/useSchedules';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSubmitReport } from '@/hooks/useReports';
+import {
+  useShiftSession,
+  useCancelSession,
+  useSubmitDiscrepancy,
+} from '@/hooks/useShiftLecture';
 import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
 
@@ -65,12 +73,18 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
   const unreadCount = useUnreadNotificationCount();
   const { analytics } = useAnalytics();
   const submitReportMutation = useSubmitReport();
+  const shiftSessionMutation = useShiftSession();
+  const cancelSessionMutation = useCancelSession();
+  const submitDiscrepancyMutation = useSubmitDiscrepancy();
 
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [statusFilter, setStatusFilter] = useState<SessionStatus | 'all'>('all');
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const [submitReportVisible, setSubmitReportVisible] = useState(false);
+  const [shiftLectureVisible, setShiftLectureVisible] = useState(false);
+  const [cancelLectureVisible, setCancelLectureVisible] = useState(false);
+  const [examPreviewSession, setExamPreviewSession] = useState<Session | null>(null);
 
   const {
     sessions,
@@ -92,6 +106,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
   }, [allSessions, canViewPast]);
 
   const handleMorePress = (session: Session) => {
+    if (session.isExam) return;
     setSelectedSession(session);
     setQuickActionsVisible(true);
   };
@@ -114,6 +129,104 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
         });
       },
     });
+  };
+
+  const handleSubmitShift = (params: {
+    isRecurring: boolean;
+    venueId: string;
+    venueName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    reason: string;
+  }) => {
+    if (!selectedSession) return;
+    if (params.isRecurring) {
+      submitDiscrepancyMutation.mutate(
+        {
+          timetable_entry: selectedSession.timetableEntryId,
+          request_type: 'shift_venue',
+          proposed_venue: params.venueId,
+          proposed_start_time: params.startTime + ':00',
+          proposed_end_time: params.endTime + ':00',
+          proposed_date: params.date,
+          reason: params.reason,
+        },
+        {
+          onSuccess: () => {
+            setShiftLectureVisible(false);
+            Toast.show({
+              type: 'success',
+              text1: 'Discrepancy Request Submitted',
+              text2: 'Recurrent shift request routed to admin for approval.',
+            });
+          },
+          onError: (err: any) => {
+            Toast.show({
+              type: 'error',
+              text1: 'Request Failed',
+              text2: err?.message || 'Could not submit discrepancy request.',
+            });
+          },
+        }
+      );
+    } else {
+      shiftSessionMutation.mutate(
+        {
+          sessionId: selectedSession.id,
+          payload: {
+            venue: params.venueId,
+            session_date: params.date,
+            session_start_time: params.startTime + ':00',
+            session_end_time: params.endTime + ':00',
+          },
+        },
+        {
+          onSuccess: () => {
+            setShiftLectureVisible(false);
+            Toast.show({
+              type: 'success',
+              text1: 'Lecture Shifted',
+              text2: `Successfully shifted to ${params.venueName} (${params.startTime} - ${params.endTime}).`,
+            });
+          },
+          onError: (err: any) => {
+            Toast.show({
+              type: 'error',
+              text1: 'Shift Failed',
+              text2: err?.message || 'Could not shift lecture. Check for conflicts.',
+            });
+          },
+        }
+      );
+    }
+  };
+
+  const handleConfirmCancel = (cancelReason: string) => {
+    if (!selectedSession) return;
+    cancelSessionMutation.mutate(
+      {
+        sessionId: selectedSession.id,
+        reason: cancelReason,
+      },
+      {
+        onSuccess: () => {
+          setCancelLectureVisible(false);
+          Toast.show({
+            type: 'success',
+            text1: 'Lecture Cancelled',
+            text2: 'Session marked as cancelled and students notified.',
+          });
+        },
+        onError: (err: any) => {
+          Toast.show({
+            type: 'error',
+            text1: 'Cancellation Failed',
+            text2: err?.message || 'Could not cancel lecture.',
+          });
+        },
+      }
+    );
   };
 
   return (
@@ -174,12 +287,26 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
             isError={isError}
             isRefreshing={isRefreshing}
             onRefresh={refetch}
-            onSessionPress={(s) => onNavigateToSession(s.id)}
+            onSessionPress={(s) => {
+              if (s.isExam) {
+                setExamPreviewSession(s);
+              } else {
+                onNavigateToSession(s.id);
+              }
+            }}
             onSessionMorePress={handleMorePress}
             emptyMessage={`No ${statusFilter === 'all' ? '' : statusFilter + ' '}sessions scheduled from this date forward.`}
           />
         </View>
       </View>
+
+      {/* Exam preview sheet */}
+      <CalendarSessionPreviewBottomSheet
+        visible={!!examPreviewSession}
+        onClose={() => setExamPreviewSession(null)}
+        session={examPreviewSession}
+        onViewDetails={() => setExamPreviewSession(null)}
+      />
 
       {/* Quick actions sheet */}
       <SessionQuickActionsBottomSheet
@@ -187,8 +314,11 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
         onClose={() => setQuickActionsVisible(false)}
         session={selectedSession}
         isClassRep={profile.isClassRep}
+        isLecturer={profile.role === 'lecturer'}
         onViewDetails={() => selectedSession && onNavigateToSession(selectedSession.id)}
         onSubmitReport={() => setSubmitReportVisible(true)}
+        onShiftLecture={() => setShiftLectureVisible(true)}
+        onCancelLecture={() => setCancelLectureVisible(true)}
       />
 
       {/* Submit report sheet */}
@@ -198,6 +328,24 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigateToSession })
         session={selectedSession}
         onSubmit={handleSubmitReport}
         isSubmitting={submitReportMutation.isPending}
+      />
+
+      {/* Shift lecture sheet */}
+      <ShiftLectureBottomSheet
+        visible={shiftLectureVisible}
+        onClose={() => setShiftLectureVisible(false)}
+        session={selectedSession}
+        onSubmitShift={handleSubmitShift}
+        isSubmitting={shiftSessionMutation.isPending || submitDiscrepancyMutation.isPending}
+      />
+
+      {/* Cancel lecture sheet */}
+      <CancelLectureBottomSheet
+        visible={cancelLectureVisible}
+        onClose={() => setCancelLectureVisible(false)}
+        session={selectedSession}
+        onConfirmCancel={handleConfirmCancel}
+        isCancelling={cancelSessionMutation.isPending}
       />
     </SafeAreaView>
   );

@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppDarkTheme, setAppDefaultFont, colors } from '@/theme';
 import { toastConfig } from '@/components/ui/ToastConfig';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { setupNotificationListeners } from '@/services/notificationService';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +67,35 @@ function NavigationGate() {
       router.replace('/(auth)/login');
     }
   }, [isAuthenticated, user, requiresPasswordReset, isLoading, segments, router]);
+
+  useEffect(() => {
+    const cleanup = setupNotificationListeners(
+      (data) => {
+        // Deep link routing when user taps a push notification in tray
+        if (data.relatedModel === 'LectureSession' && data.relatedId) {
+          router.push(`/sessions/${data.relatedId}` as any);
+        } else if (data.relatedModel === 'ClassRepReport' && data.relatedId) {
+          router.push(`/reports/${data.relatedId}` as any);
+        } else if (
+          data.relatedModel === 'ExamSitting' ||
+          data.relatedModel === 'ExamOptimizerRun' ||
+          data.relatedModel === 'TimetableGenerationRun'
+        ) {
+          router.push('/(tabs)/calendar' as any);
+        } else if (data.notificationId) {
+          router.push(`/notifications/${data.notificationId}` as any);
+        } else {
+          router.push('/notifications' as any);
+        }
+      },
+      () => {
+        // Foreground notification arrived -> refresh inbox queries
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      },
+    );
+
+    return cleanup;
+  }, [router]);
 
   return (
     <Stack

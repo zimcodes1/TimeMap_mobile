@@ -7,7 +7,8 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, CheckCheck, WifiOff } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { ArrowLeft, CheckCheck, SlidersHorizontal, WifiOff } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/common/Text';
 import { NotificationCard } from '@/components/cards/NotificationCard';
@@ -24,6 +25,7 @@ import {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface NotificationsScreenProps {
+  onBack?: () => void;
   onNavigateToSession: (sessionId: string) => void;
   onNavigateToReport: (reportId: string) => void;
 }
@@ -31,9 +33,20 @@ export interface NotificationsScreenProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
+  onBack,
   onNavigateToSession,
   onNavigateToReport,
 }) => {
+  const router = useRouter();
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else if (router.canGoBack()) {
+      router.back();
+    }
+  };
+
   const {
     notifications,
     isLoading,
@@ -94,13 +107,18 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Notifications</Text>
-            {unreadCount > 0 ? (
-              <Text style={styles.unreadLabel}>{unreadCount} unread</Text>
-            ) : (
-              <Text style={styles.unreadLabel}>All caught up</Text>
-            )}
+          <View style={styles.headerLeft}>
+            <Pressable onPress={handleBack} hitSlop={12} style={styles.backBtn}>
+              <ArrowLeft size={20} color={colors.textMain} />
+            </Pressable>
+            <View style={styles.headerTitles}>
+              <Text style={styles.title}>Notifications</Text>
+              {unreadCount > 0 ? (
+                <Text style={styles.unreadLabel}>{unreadCount} unread</Text>
+              ) : (
+                <Text style={styles.unreadLabel}>All caught up</Text>
+              )}
+            </View>
           </View>
           <View style={styles.headerActions}>
             {isOffline ? (
@@ -112,7 +130,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
             {unreadCount > 0 ? (
               <Pressable onPress={handleMarkAllRead} style={styles.markAllBtn}>
                 <CheckCheck size={16} color={colors.primary} />
-                <Text style={styles.markAllText}>Mark all read</Text>
+                <Text style={styles.markAllText}>Mark all</Text>
               </Pressable>
             ) : null}
             <Pressable
@@ -122,7 +140,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                 (filters.type !== 'all' || filters.unreadOnly) && styles.filterBtnActive,
               ]}
             >
-              <Bell size={18} color={
+              <SlidersHorizontal size={18} color={
                 (filters.type !== 'all' || filters.unreadOnly) ? colors.primary : colors.textMuted
               } />
             </Pressable>
@@ -225,18 +243,37 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 16,
     paddingBottom: 12,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitles: {
+    flex: 1,
+  },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: colors.textMain,
   },
   unreadLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSubtle,
     fontWeight: '600',
     marginTop: 2,
@@ -265,7 +302,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 4,
   },
   markAllBtn: {
     flexDirection: 'row',

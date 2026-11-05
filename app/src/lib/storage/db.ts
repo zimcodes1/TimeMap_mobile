@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { UserProfile, Session, AnalyticsData } from '@/types';
+import { UserProfile, Session, SessionStatus, AnalyticsData, AcademicSession, Semester } from '@/types';
 
 const DB_NAME = 'timemap_local.db';
 
@@ -64,7 +64,7 @@ async function initTables(db: SQLite.SQLiteDatabase): Promise<void> {
     if (!hasProgramCol) {
       await db.execAsync('ALTER TABLE user_profile ADD COLUMN program TEXT;');
     }
-  } catch (e) {
+  } catch {
     // Non-fatal if table info query fails
   }
 }
@@ -239,6 +239,95 @@ export const localDB = {
   },
 
   /**
+   * Mark a session as reported in SQLite cache
+   */
+  async markSessionAsReported(sessionId: string, reportId: string, held: boolean): Promise<void> {
+    try {
+      const cached = await this.getSessions();
+      if (cached && Array.isArray(cached)) {
+        const updated = cached.map((s) => {
+          if (String(s.id) === String(sessionId)) {
+            return {
+              ...s,
+              reportId: String(reportId),
+              reportWindowOpen: false,
+              status: (held ? 'held' : 'not_held') as SessionStatus,
+            };
+          }
+          return s;
+        });
+        await this.setCache('scoped_sessions', updated);
+      }
+
+      // Update single session detail cache if present
+      const direct = await this.getCache<Session>(`session_detail_${sessionId}`);
+      if (direct) {
+        const updatedDirect: Session = {
+          ...direct,
+          reportId: String(reportId),
+          reportWindowOpen: false,
+          status: (held ? 'held' : 'not_held') as SessionStatus,
+        };
+        await this.setCache(`session_detail_${sessionId}`, updatedDirect);
+      }
+    } catch (error) {
+      console.error('[SQLite] Error marking session as reported:', error);
+    }
+  },
+
+  /**
+   * Update session in SQLite cache after shift or change
+   */
+  async updateSessionInCache(updatedSession: Session): Promise<void> {
+    try {
+      const cached = await this.getSessions();
+      if (cached && Array.isArray(cached)) {
+        const updated = cached.map((s) => {
+          if (String(s.id) === String(updatedSession.id)) {
+            return { ...s, ...updatedSession };
+          }
+          return s;
+        });
+        await this.setCache('scoped_sessions', updated);
+      }
+      await this.setCache(`session_detail_${updatedSession.id}`, updatedSession);
+    } catch (error) {
+      console.error('[SQLite] Error updating session in cache:', error);
+    }
+  },
+
+  /**
+   * Cancel a session in SQLite cache
+   */
+  async cancelSessionInCache(sessionId: string): Promise<void> {
+    try {
+      const cached = await this.getSessions();
+      if (cached && Array.isArray(cached)) {
+        const updated = cached.map((s) => {
+          if (String(s.id) === String(sessionId)) {
+            return {
+              ...s,
+              status: 'cancelled' as SessionStatus,
+            };
+          }
+          return s;
+        });
+        await this.setCache('scoped_sessions', updated);
+      }
+
+      const direct = await this.getCache<Session>(`session_detail_${sessionId}`);
+      if (direct) {
+        await this.setCache(`session_detail_${sessionId}`, {
+          ...direct,
+          status: 'cancelled' as SessionStatus,
+        });
+      }
+    } catch (error) {
+      console.error('[SQLite] Error cancelling session in cache:', error);
+    }
+  },
+
+  /**
    * Get single session by ID
    */
   async getSessionById(sessionId: string): Promise<Session | null> {
@@ -297,5 +386,48 @@ export const localDB = {
    */
   async setLastAnalyticsSyncTime(timestamp: number, keySuffix: string = 'default'): Promise<void> {
     await this.setCache(`analytics_last_sync_${keySuffix}`, timestamp);
+  },
+
+  /**
+   * Save academic sessions in SQLite offline cache
+   */
+  async saveAcademicSessions(sessions: AcademicSession[]): Promise<void> {
+    await this.setCache('academic_sessions', sessions);
+    await this.setCache('academic_sessions_last_sync', Date.now());
+  },
+
+  /**
+   * Get cached academic sessions from SQLite
+   */
+  async getAcademicSessions(): Promise<AcademicSession[] | null> {
+    return this.getCache<AcademicSession[]>('academic_sessions');
+  },
+
+  /**
+   * Save current academic session
+   */
+  async saveCurrentAcademicSession(session: AcademicSession): Promise<void> {
+    await this.setCache('current_academic_session', session);
+  },
+
+  /**
+   * Get cached current academic session
+   */
+  async getCurrentAcademicSession(): Promise<AcademicSession | null> {
+    return this.getCache<AcademicSession>('current_academic_session');
+  },
+
+  /**
+   * Save active semester
+   */
+  async saveActiveSemester(semester: Semester): Promise<void> {
+    await this.setCache('active_semester', semester);
+  },
+
+  /**
+   * Get cached active semester
+   */
+  async getActiveSemester(): Promise<Semester | null> {
+    return this.getCache<Semester>('active_semester');
   },
 };

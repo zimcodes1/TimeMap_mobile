@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "846880013917",
+    "project_id": "timemap-nsuk",
+    "storage_bucket": "timemap-nsuk.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:846880013917:android:117e21b6f4ac61138457b4",
+        "android_client_info": {
+          "package_name": "com.nsuk.timemap"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnLAjJmM-NesLk3R2YP6PptxhLcBr1CxA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

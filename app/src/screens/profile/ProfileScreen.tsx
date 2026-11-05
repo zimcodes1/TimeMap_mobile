@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -23,6 +23,11 @@ import { LogoutConfirmBottomSheet } from '@/components/bottom-sheets/LogoutConfi
 import { PushPermissionBottomSheet } from '@/components/bottom-sheets/PushPermissionBottomSheet';
 import { AccountDetailsBottomSheet } from '@/components/bottom-sheets/AccountDetailsBottomSheet';
 import { useAuth } from '@/context/AuthContext';
+import {
+  registerForPushNotificationsAsync,
+  unregisterForPushNotificationsAsync,
+  isPushPermissionGrantedAsync,
+} from '@/services/notificationService';
 import Constants from 'expo-constants';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -46,25 +51,35 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
     requiresPasswordReset: false,
   };
 
-  const [pushEnabled, setPushEnabled] = useState(profile.pushEnabled);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [isEnablingPush, setIsEnablingPush] = useState(false);
   const [logoutVisible, setLogoutVisible] = useState(false);
   const [pushSheetVisible, setPushSheetVisible] = useState(false);
   const [accountDetailsVisible, setAccountDetailsVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handlePushToggle = (value: boolean) => {
+  useEffect(() => {
+    isPushPermissionGrantedAsync().then(setPushEnabled);
+  }, []);
+
+  const handlePushToggle = async (value: boolean) => {
     if (value) {
       setPushSheetVisible(true);
     } else {
-      // TODO(api-wiring): POST /api/notifications/devices/deactivate/
+      await unregisterForPushNotificationsAsync();
       setPushEnabled(false);
     }
   };
 
-  const handleEnablePush = () => {
-    // TODO(api-wiring): expo-notifications.requestPermissionsAsync() + POST /api/notifications/devices/
-    setPushEnabled(true);
-    setPushSheetVisible(false);
+  const handleEnablePush = async () => {
+    setIsEnablingPush(true);
+    try {
+      const token = await registerForPushNotificationsAsync();
+      setPushEnabled(Boolean(token));
+      setPushSheetVisible(false);
+    } finally {
+      setIsEnablingPush(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -187,6 +202,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
         visible={pushSheetVisible}
         onClose={() => setPushSheetVisible(false)}
         onEnable={handleEnablePush}
+        isEnabling={isEnablingPush}
       />
 
       <AccountDetailsBottomSheet
