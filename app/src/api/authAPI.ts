@@ -46,6 +46,7 @@ export interface StudentSignupPayload {
   matric_number: string;
   full_name: string;
   email: string;
+  school?: number;
   faculty?: number;
   department: number;
   program: number;
@@ -57,6 +58,7 @@ export interface HierarchyOption {
   id: number;
   name: string;
   code: string;
+  school_id?: number;
 }
 
 export interface DepartmentOption extends HierarchyOption {
@@ -70,6 +72,7 @@ export interface ProgramOption extends HierarchyOption {
 }
 
 export interface RegistrationOptionsResponse {
+  schools?: HierarchyOption[];
   faculties: HierarchyOption[];
   departments: DepartmentOption[];
   programs: ProgramOption[];

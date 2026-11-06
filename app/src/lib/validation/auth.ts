@@ -30,6 +30,7 @@ export const studentRegisterSchema = z
     fullName: z.string().min(2, 'Full name must be at least 2 characters'),
     matricNumber: z.string().min(3, 'Matric number is required'),
     email: z.string().email('Please enter a valid email address'),
+    schoolId: z.number({ message: 'Please select a school / institute' }).min(1, 'Please select a school / institute'),
     facultyId: z.number({ message: 'Please select a faculty' }).min(1, 'Please select a faculty'),
     departmentId: z.number({ message: 'Please select a department' }).min(1, 'Please select a department'),
     programId: z.number({ message: 'Please select a program' }).min(1, 'Please select a program'),
