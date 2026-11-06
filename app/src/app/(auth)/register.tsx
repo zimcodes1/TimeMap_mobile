@@ -30,6 +30,7 @@ export default function RegisterRoute() {
       console.log('[RegisterRoute] Fetching registration options...');
       const res = await authAPI.getRegistrationOptions();
       console.log('[RegisterRoute] Registration options loaded:', {
+        schoolsCount: res.schools?.length,
         facultiesCount: res.faculties?.length,
         departmentsCount: res.departments?.length,
         programsCount: res.programs?.length,
@@ -55,10 +56,20 @@ export default function RegisterRoute() {
     },
   });
 
+  const selectedSchoolId = watch('schoolId');
   const selectedFacultyId = watch('facultyId');
   const selectedDepartmentId = watch('departmentId');
   const selectedProgramId = watch('programId');
   const selectedLevel = watch('level');
+
+  const handleSelectSchool = (schoolId: number) => {
+    setValue('schoolId', schoolId, { shouldValidate: true });
+    // Reset dependent fields
+    setValue('facultyId', undefined as any, { shouldValidate: false });
+    setValue('departmentId', undefined as any, { shouldValidate: false });
+    setValue('programId', undefined as any, { shouldValidate: false });
+    setValue('level', undefined as any, { shouldValidate: false });
+  };
 
   const handleSelectFaculty = (facultyId: number) => {
     setValue('facultyId', facultyId, { shouldValidate: true });
@@ -92,6 +103,7 @@ export default function RegisterRoute() {
         matric_number: data.matricNumber,
         full_name: data.fullName,
         email: data.email,
+        school: data.schoolId,
         faculty: data.facultyId,
         department: data.departmentId,
         program: data.programId,
@@ -131,13 +143,16 @@ export default function RegisterRoute() {
       isOptionsError={isError}
       optionsErrorMessage={optionsError?.message}
       onRetryFetchOptions={() => refetch()}
+      schools={optionsData?.schools || []}
       faculties={optionsData?.faculties || []}
       departments={optionsData?.departments || []}
       programs={optionsData?.programs || []}
+      selectedSchoolId={selectedSchoolId}
       selectedFacultyId={selectedFacultyId}
       selectedDepartmentId={selectedDepartmentId}
       selectedProgramId={selectedProgramId}
       selectedLevel={selectedLevel}
+      onSelectSchool={handleSelectSchool}
       onSelectFaculty={handleSelectFaculty}
       onSelectDepartment={handleSelectDepartment}
       onSelectProgram={handleSelectProgram}

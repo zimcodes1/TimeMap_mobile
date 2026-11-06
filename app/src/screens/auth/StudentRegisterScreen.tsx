@@ -18,6 +18,7 @@ import {
 	Eye,
 	EyeOff,
 	Building2,
+	Landmark,
 	BookOpen,
 	ChevronDown,
 	AlertCircle,
@@ -47,13 +48,16 @@ export interface StudentRegisterScreenProps {
 	isOptionsError?: boolean;
 	optionsErrorMessage?: string;
 	onRetryFetchOptions?: () => void;
+	schools: HierarchyOption[];
 	faculties: HierarchyOption[];
 	departments: DepartmentOption[];
 	programs: ProgramOption[];
+	selectedSchoolId?: number;
 	selectedFacultyId?: number;
 	selectedDepartmentId?: number;
 	selectedProgramId?: number;
 	selectedLevel?: number;
+	onSelectSchool: (schoolId: number) => void;
 	onSelectFaculty: (facultyId: number) => void;
 	onSelectDepartment: (departmentId: number) => void;
 	onSelectProgram: (programId: number) => void;
@@ -70,13 +74,16 @@ export const StudentRegisterScreen: React.FC<StudentRegisterScreenProps> = ({
 	isOptionsError,
 	optionsErrorMessage,
 	onRetryFetchOptions,
+	schools = [],
 	faculties,
 	departments,
 	programs,
+	selectedSchoolId,
 	selectedFacultyId,
 	selectedDepartmentId,
 	selectedProgramId,
 	selectedLevel,
+	onSelectSchool,
 	onSelectFaculty,
 	onSelectDepartment,
 	onSelectProgram,
@@ -88,11 +95,19 @@ export const StudentRegisterScreen: React.FC<StudentRegisterScreenProps> = ({
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 	// BottomSheet visibility states
+	const [schoolSheetVisible, setSchoolSheetVisible] = useState(false);
 	const [facultySheetVisible, setFacultySheetVisible] = useState(false);
 	const [deptSheetVisible, setDeptSheetVisible] = useState(false);
 	const [progSheetVisible, setProgSheetVisible] = useState(false);
 
 	// Filtered lists
+	const availableFaculties = useMemo(() => {
+		if (!selectedSchoolId) return schools.length > 0 ? [] : faculties;
+		return faculties.filter(
+			(f) => !f.school_id || f.school_id === selectedSchoolId,
+		);
+	}, [faculties, selectedSchoolId, schools.length]);
+
 	const availableDepartments = useMemo(() => {
 		if (!selectedFacultyId) return [];
 		return departments.filter((d) => d.faculty_id === selectedFacultyId);
@@ -120,13 +135,24 @@ export const StudentRegisterScreen: React.FC<StudentRegisterScreenProps> = ({
 	}, [selectedProgram]);
 
 	// Names of selected entities for display
+	const selectedSchool = schools.find((s) => s.id === selectedSchoolId);
 	const selectedFaculty = faculties.find((f) => f.id === selectedFacultyId);
 	const selectedDept = departments.find((d) => d.id === selectedDepartmentId);
 
 	// Format options for SelectOptionBottomSheet
+	const schoolItems: SelectOptionItem[] = useMemo(
+		() => schools.map((s) => ({ id: s.id, label: s.name, sublabel: s.code })),
+		[schools],
+	);
+
 	const facultyItems: SelectOptionItem[] = useMemo(
-		() => faculties.map((f) => ({ id: f.id, label: f.name, sublabel: f.code })),
-		[faculties],
+		() =>
+			availableFaculties.map((f) => ({
+				id: f.id,
+				label: f.name,
+				sublabel: f.code,
+			})),
+		[availableFaculties],
 	);
 
 	const deptItems: SelectOptionItem[] = useMemo(
@@ -273,15 +299,62 @@ export const StudentRegisterScreen: React.FC<StudentRegisterScreenProps> = ({
 							{/* Section: Academic Details */}
 							<Text style={styles.sectionHeader}>Academic Details</Text>
 
+							{/* School Selector */}
+							{schools.length > 0 && (
+								<View style={styles.selectorWrapper}>
+									<Text style={styles.selectorLabel}>School / Institute</Text>
+									<Pressable
+										style={[
+											styles.selectorButton,
+											Boolean(errors.schoolId) && styles.selectorButtonError,
+										]}
+										onPress={() => setSchoolSheetVisible(true)}
+									>
+										<View style={styles.selectorLeft}>
+											<Landmark
+												size={18}
+												color={colors.textSubtle}
+												style={styles.selectorIcon}
+											/>
+											<Text
+												style={[
+													styles.selectorValue,
+													!selectedSchool && styles.selectorPlaceholder,
+												]}
+												numberOfLines={1}
+											>
+												{selectedSchool
+													? selectedSchool.name
+													: "Select School / Institute"}
+											</Text>
+										</View>
+										<ChevronDown size={18} color={colors.textMuted} />
+									</Pressable>
+									{errors.schoolId?.message ? (
+										<Text style={styles.fieldErrorText}>
+											{errors.schoolId.message}
+										</Text>
+									) : null}
+								</View>
+							)}
+
 							{/* Faculty Selector */}
 							<View style={styles.selectorWrapper}>
 								<Text style={styles.selectorLabel}>Faculty</Text>
 								<Pressable
 									style={[
 										styles.selectorButton,
+										schools.length > 0 &&
+											!selectedSchoolId &&
+											styles.selectorButtonDisabled,
 										Boolean(errors.facultyId) && styles.selectorButtonError,
 									]}
-									onPress={() => setFacultySheetVisible(true)}
+									onPress={() => {
+										if (schools.length === 0 || selectedSchoolId) {
+											setFacultySheetVisible(true);
+										}
+									}}
+									disabled={schools.length > 0 && !selectedSchoolId}
 								>
 									<View style={styles.selectorLeft}>
 										<Building2
@@ -296,9 +369,11 @@ export const StudentRegisterScreen: React.FC<StudentRegisterScreenProps> = ({
 											]}
 											numberOfLines={1}
 										>
-											{selectedFaculty
-												? selectedFaculty.name
-												: "Select Faculty"}
+											{schools.length > 0 && !selectedSchoolId
+												? "Select School / Institute first"
+												: selectedFaculty
+													? selectedFaculty.name
+													: "Select Faculty"}
 										</Text>
 									</View>
 									<ChevronDown size={18} color={colors.textMuted} />
@@ -527,6 +602,16 @@ export const StudentRegisterScreen: React.FC<StudentRegisterScreenProps> = ({
 			</ScrollView>
 
 			{/* Hierarchy Selector Bottom Sheets */}
+			<SelectOptionBottomSheet
+				visible={schoolSheetVisible}
+				onClose={() => setSchoolSheetVisible(false)}
+				title="Select School / Institute"
+				subtitle="Choose your university school or institute (e.g. Main Campus, SPGS, CCST)"
+				items={schoolItems}
+				selectedId={selectedSchoolId}
+				onSelect={(item) => onSelectSchool(item.id)}
+			/>
+
 			<SelectOptionBottomSheet
 				visible={facultySheetVisible}
 				onClose={() => setFacultySheetVisible(false)}
