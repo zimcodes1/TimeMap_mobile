@@ -17,9 +17,6 @@
     "production": {
       "node": "22.13.0",
       "autoIncrement": true,
-      "android": {
-        "buildType": "apk"
-      },
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://timemap-backend-mki9.onrender.com/api"
